@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuraSpeak AI Translator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+            background-color: #FFFFFF; /* White Background */
+        }
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #e5e7eb;
+            border-bottom-color: #1B1B1D; /* Dark Gray/Black */
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-white text-[#1B1B1D] flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-2xl mx-auto relative">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200 relative z-10">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl sm:text-5xl font-extrabold text-[#1B1B1D] tracking-tighter">NeuraSpeak</h1>
+                <p class="text-gray-500 mt-2 font-semibold">Instant. Nuanced. Truly You.</p>
+            </div>
+
+            <!-- Language Selection & Input -->
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <select id="source-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#D71921]/50 focus:border-[#D71921] outline-none transition">
+                        <option value="English">English</option>
+                        <option value="Japanese" selected>Japanese</option>
+                        <option value="Spanish">Spanish</option>
+                        <option value="French">French</option>
+                        <option value="German">German</option>
+                        <option value="Chinese">Chinese</option>
+                        <option value="Korean">Korean</option>
+                    </select>
+                    <select id="target-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-blue-800/50 focus:border-blue-800 outline-none transition">
+                        <option value="English" selected>English</option>
+                        <option value="Japanese">Japanese</option>
+                        <option value="Spanish">Spanish</option>
+                        <option value="French">French</option>
+                        <option value="German">German</option>
+                        <option value="Chinese">Chinese</option>
+                        <option value="Korean">Korean</option>
+                    </select>
+                </div>
+                
+                <textarea id="text-input" rows="4" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#1B1B1D]/50 focus:border-[#1B1B1D] outline-none transition" placeholder="e.g., メニューを見せてください。"></textarea>
+
+                <button id="translate-btn" class="w-full bg-[#1B1B1D] text-white font-extrabold text-lg py-3 px-4 rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-offset-white focus:ring-[#1B1B1D] transition-transform hover:scale-105 duration-200 flex items-center justify-center">
+                    Translate
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-container" class="mt-8 space-y-6 hidden">
+                <!-- Loading Spinner -->
+                <div id="loader-container" class="text-center hidden py-8">
+                    <div class="loader"></div>
+                    <p class="text-gray-500 font-bold mt-4">AI is on it...</p>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="error-message" class="text-center text-red-500 font-bold hidden"></div>
+
+                <!-- Translation Cards -->
+                <div id="translation-cards" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const translateBtn = document.getElementById('translate-btn');
+        const textInput = document.getElementById('text-input');
+        const sourceLangSelect = document.getElementById('source-lang');
+        const targetLangSelect = document.getElementById('target-lang');
+        const resultsContainer = document.getElementById('results-container');
+        const loader = document.getElementById('loader-container');
+        const errorMessage = document.getElementById('error-message');
+        const translationCards = document.getElementById('translation-cards');
+
+        // --- TTS Voice Loading ---
+        let voices = [];
+        function populateVoiceList() {
+            if(typeof speechSynthesis === 'undefined') {
+                return;
+            }
+            voices = speechSynthesis.getVoices();
+        }
+        populateVoiceList();
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+
+        // --- Event Listeners ---
+        translateBtn.addEventListener('click', handleTranslation);
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleTranslation();
+            }
+        });
+
+        // --- Main Translation Handler ---
+        async function handleTranslation() {
+            const text = textInput.value.trim();
+            const sourceLang = sourceLangSelect.value;
+            const targetLang = targetLangSelect.value;
+
+            if (!text) {
+                showError("Please enter some text to translate.");
+                return;
+            }
+
+            showLoader(true);
+            clearResults();
+
+            try {
+                const result = await getAiTranslation(text, sourceLang, targetLang);
+                if (result) {
+                    displayResults(result);
+                }
+            } catch (error) {
+                console.error("Translation error:", error);
+                showError("Sorry, an error occurred while translating. Please try again.");
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        // --- AI Translation API Call (Logic remains the same) ---
+        async function getAiTranslation(text, sourceLang, targetLang) {
+            const prompt = `You are an expert multilingual translator. Your task is to translate the user's text and provide contextual variations, including back-translations to clarify the nuance.
+
+            User's Text: "${text}"
+            Source Language: ${sourceLang}
+            Target Language: ${targetLang}
+
+            Please provide the following in a JSON object, strictly following the schema:
+            1.  "standardTranslation": An object with "target" (the standard translation) and "source_nuance" (the back-translation of the target text into the source language to explain its nuance).
+            2.  "informal": An object with "target" (a casual, Gen Z style version) and "source_nuance" (its back-translation). If not applicable, return null.
+            3.  "polite": An object with "target" (a polite/formal version) and "source_nuance" (its back-translation). If not applicable, return null.
+            4.  "predictedSentences": An array of 3 objects. Each object should contain two keys: "target" (the predicted sentence in the target language) and "source" (the translation of that predicted sentence back into the source language). These should be logical follow-ups to the original text.
+
+            Respond ONLY with the JSON object.`;
+
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "standardTranslation": {
+                                type: "OBJECT",
+                                properties: {
+                                    "target": { "type": "STRING" },
+                                    "source_nuance": { "type": "STRING" }
+                                },
+                                required: ["target", "source_nuance"]
+                            },
+                            "informal": {
+                                type: "OBJECT",
+                                properties: {
+                                    "target": { "type": "STRING" },
+                                    "source_nuance": { "type": "STRING" }
+                                }
+                            },
+                            "polite": {
+                                type: "OBJECT",
+                                properties: {
+                                    "target": { "type": "STRING" },
+                                    "source_nuance": { "type": "STRING" }
+                                }
+                            },
+                            "predictedSentences": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "target": { "type": "STRING" },
+                                        "source": { "type": "STRING" }
+                                    },
+                                    "required": ["target", "source"]
+                                }
+                            }
+                        },
+                        required: ["standardTranslation", "predictedSentences"]
+                    }
+                }
+            };
+            
+            const apiKey = ""; // API key will be managed by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API request failed with status ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+                return JSON.parse(result.candidates[0].content.parts[0].text);
+            } else {
+                throw new Error("Invalid response structure from API.");
+            }
+        }
+
+        // --- DOM Manipulation ---
+        function displayResults(data) {
+            clearResults();
+
+            if(data.standardTranslation){
+                createResultCard('Standard', data.standardTranslation.target, data.standardTranslation.source_nuance, 'border-blue-800', '#1e3a8a'); // Navy
+            }
+            if (data.informal) {
+                createResultCard('Informal (Gen Z)', data.informal.target, data.informal.source_nuance, 'border-[#D71921]', '#D71921'); // Red
+            }
+            if (data.polite) {
+                createResultCard('Polite', data.polite.target, data.polite.source_nuance, 'border-[#1B1B1D]', '#1B1B1D'); // Dark Gray/Black
+            }
+
+            if (data.predictedSentences && data.predictedSentences.length > 0) {
+                const container = document.createElement('div');
+                container.className = 'bg-gray-50 p-4 rounded-lg border-2 border-gray-200';
+                
+                const title = document.createElement('h3');
+                title.className = 'text-sm font-extrabold text-gray-400 mb-3 tracking-wider uppercase';
+                title.textContent = 'Next Actions';
+                container.appendChild(title);
+
+                const list = document.createElement('div');
+                list.className = 'space-y-2';
+                data.predictedSentences.forEach(sentenceObj => {
+                    const item = document.createElement('div');
+                    item.className = 'bg-white p-3 rounded-md border border-gray-200';
+
+                    const textWrapper = document.createElement('div');
+                    textWrapper.className = 'flex-grow pr-2';
+
+                    const targetText = document.createElement('p');
+                    targetText.className = 'text-[#1B1B1D] font-bold';
+                    targetText.textContent = sentenceObj.target;
+                    textWrapper.appendChild(targetText);
+                    
+                    const sourceText = document.createElement('p');
+                    sourceText.className = 'text-sm text-gray-500';
+                    sourceText.textContent = sentenceObj.source;
+                    textWrapper.appendChild(sourceText);
+
+                    const itemContainer = document.createElement('div');
+                    itemContainer.className = 'flex items-center justify-between';
+                    itemContainer.appendChild(textWrapper);
+
+                    const controlsWrapper = document.createElement('div');
+                    controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
+                    controlsWrapper.appendChild(createSpeakButton(sentenceObj.target, 'text-gray-400'));
+                    controlsWrapper.appendChild(createCopyButton(sentenceObj.target, 'text-gray-400'));
+                    itemContainer.appendChild(controlsWrapper);
+
+                    item.appendChild(itemContainer);
+                    list.appendChild(item);
+                });
+                container.appendChild(list);
+                translationCards.appendChild(container);
+            }
+        }
+
+        function createResultCard(titleText, contentText, nuanceText, borderColor, highlightBgColor) {
+            const card = document.createElement('div');
+            card.className = `bg-white p-4 rounded-lg border-2 ${borderColor}`;
+
+            const header = document.createElement('div');
+            header.className = 'flex justify-between items-center mb-3';
+            
+            const title = document.createElement('h3');
+            title.className = `text-sm font-extrabold text-gray-400 tracking-wider uppercase`;
+            title.textContent = titleText;
+            header.appendChild(title);
+            
+            card.appendChild(header);
+
+            const contentBox = document.createElement('div');
+            contentBox.style.backgroundColor = highlightBgColor;
+            contentBox.className = 'p-3 rounded-lg flex justify-between items-center';
+
+            const contentTextElement = document.createElement('span');
+            contentTextElement.className = 'text-white text-xl font-bold';
+            contentTextElement.textContent = contentText;
+            contentBox.appendChild(contentTextElement);
+
+            const controlsWrapper = document.createElement('div');
+            controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
+            controlsWrapper.appendChild(createSpeakButton(contentText, 'text-white'));
+            controlsWrapper.appendChild(createCopyButton(contentText, 'text-white'));
+            contentBox.appendChild(controlsWrapper);
+            
+            card.appendChild(contentBox);
+            
+            const nuanceContainer = document.createElement('div');
+            nuanceContainer.className = 'mt-3 border-t border-gray-200 pt-3';
+
+            const nuanceTextElement = document.createElement('p');
+            nuanceTextElement.className = 'text-sm text-[#1B1B1D] font-bold';
+            nuanceTextElement.textContent = nuanceText;
+            
+            nuanceContainer.appendChild(nuanceTextElement);
+            card.appendChild(nuanceContainer);
+
+            translationCards.appendChild(card);
+        }
+
+        function getLangCode(langName) {
+            const langMap = {
+                'English': 'en-US',
+                'Japanese': 'ja-JP',
+                'Spanish': 'es-ES',
+                'French': 'fr-FR',
+                'German': 'de-DE',
+                'Chinese': 'zh-CN',
+                'Korean': 'ko-KR',
+            };
+            return langMap[langName] || 'en-US';
+        }
+
+        function speakText(text, langCode) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Stop any previous speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = langCode;
+                
+                // Find a specific voice for the language for better quality
+                const voice = voices.find(v => v.lang === langCode);
+                if (voice) {
+                    utterance.voice = voice;
+                } else {
+                    console.warn(`No specific voice found for ${langCode}, using browser default.`);
+                }
+
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert("Sorry, your browser does not support text-to-speech.");
+            }
+        }
+
+        function createSpeakButton(textToSpeak, iconColor) {
+            const button = document.createElement('button');
+            button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+            button.title = "音声で聞く";
+
+            button.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent card click
+                const targetLangName = targetLangSelect.value;
+                const langCode = getLangCode(targetLangName);
+                speakText(textToSpeak, langCode);
+            });
+            return button;
+        }
+
+        function createCopyButton(textToCopy, iconColor) {
+            const button = document.createElement('button');
+            button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+            button.title = "クリップボードにコピー";
+            
+            button.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent card click
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M20 6 9 17l-5-5"/></svg>`;
+                    setTimeout(() => {
+                         button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                }
+                document.body.removeChild(textarea);
+            });
+            return button;
+        }
+
+        function showLoader(isLoading) {
+            resultsContainer.classList.remove('hidden');
+            if (isLoading) {
+                loader.classList.remove('hidden');
+                translateBtn.disabled = true;
+                translateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                loader.classList.add('hidden');
+                translateBtn.disabled = false;
+                translateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function showError(msg) {
+            resultsContainer.classList.remove('hidden');
+            errorMessage.textContent = msg;
+            errorMessage.classList.remove('hidden');
+        }
+
+        function clearResults() {
+            errorMessage.classList.add('hidden');
+            translationCards.innerHTML = '';
+        }
+    </script>
+</body>
+</html>
