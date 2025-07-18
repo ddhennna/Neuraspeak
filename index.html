@@ -88,6 +88,10 @@
                 <div id="translation-cards" class="space-y-4"></div>
             </div>
         </div>
+        <!-- Signature Footer -->
+        <footer class="text-center py-4">
+            <p class="text-sm text-gray-500">Built by Amane Takezawa</p>
+        </footer>
     </div>
 
     <script>
@@ -161,7 +165,7 @@
             1.  "standardTranslation": An object with "target" (the standard translation) and "source_nuance" (the back-translation of the target text into the source language to explain its nuance).
             2.  "informal": An object with "target" (a casual, Gen Z style version) and "source_nuance" (its back-translation). If not applicable, return null.
             3.  "polite": An object with "target" (a polite/formal version) and "source_nuance" (its back-translation). If not applicable, return null.
-            4.  "predictedSentences": An array of 3 objects. Each object should contain two keys: "target" (the predicted sentence in the target language) and "source" (the translation of that predicted sentence back into the source language). These should be logical follow-ups to the original text.
+            4.  "predictedSentences": An array of 3 objects. Each object should contain two keys: "target" (the predicted sentence in the target language) and "source" (the translation of that predicted sentence back into the source language). These should be logical follow-ups to the original text. IMPORTANT: If you generate a suggestion like "Do you have a [language] menu?", you MUST replace "[language]" with the actual source language, which is "${sourceLang}". For example, if the source language is Japanese, a predicted sentence might have a "target" of "Do you have a Japanese menu?" and a "source" of "日本語のメニューはありますか？".
 
             Respond ONLY with the JSON object.`;
 
@@ -211,7 +215,7 @@
                 }
             };
             
-            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg";
+            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // API key will be managed by the environment
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             const response = await fetch(apiUrl, {
