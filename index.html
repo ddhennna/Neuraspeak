@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuraSpeak AI Translator</title>
+    <title>NeuraSpeak AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,18 +37,17 @@
 <body class="bg-white text-[#1B1B1D] flex items-center justify-center min-h-screen p-4">
     <div class="w-full max-w-2xl mx-auto relative">
         <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200 relative z-10">
-            <!-- Header -->
             <div class="text-center mb-8">
                 <h1 class="text-4xl sm:text-5xl font-extrabold text-[#1B1B1D] tracking-tighter">NeuraSpeak</h1>
                 <p class="text-gray-500 mt-2 font-semibold">Instant. Nuanced. Truly You.</p>
             </div>
 
-            <!-- Language Selection & Input -->
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <select id="source-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#D71921]/50 focus:border-[#D71921] outline-none transition">
+                        <option value="auto" selected>自動認識 (Auto Detect)</option>
                         <option value="English">English</option>
-                        <option value="Japanese" selected>Japanese</option>
+                        <option value="Japanese">Japanese</option>
                         <option value="Spanish">Spanish</option>
                         <option value="French">French</option>
                         <option value="German">German</option>
@@ -73,22 +72,17 @@
                 </button>
             </div>
 
-            <!-- Results Section -->
             <div id="results-container" class="mt-8 space-y-6 hidden">
-                <!-- Loading Spinner -->
                 <div id="loader-container" class="text-center hidden py-8">
                     <div class="loader"></div>
                     <p class="text-gray-500 font-bold mt-4">AI is on it...</p>
                 </div>
                 
-                <!-- Error Message -->
                 <div id="error-message" class="text-center text-red-500 font-bold hidden"></div>
 
-                <!-- Translation Cards -->
                 <div id="translation-cards" class="space-y-4"></div>
             </div>
         </div>
-        <!-- Signature Footer -->
         <footer class="text-center py-4">
             <p class="text-sm text-gray-500">Built by Amane Takezawa</p>
         </footer>
@@ -155,17 +149,24 @@
 
         // --- AI Translation API Call (Logic remains the same) ---
         async function getAiTranslation(text, sourceLang, targetLang) {
+            
+            let sourceLanguageInstruction = `Source Language: ${sourceLang}`;
+            if (sourceLang === 'auto') {
+                sourceLanguageInstruction = `Source Language: Please auto-detect the language from the user's text. After detecting it, please fill in the "detectedSourceLanguage" field in your JSON response with the name of the detected language in English (e.g., "Japanese").`;
+            }
+
             const prompt = `You are an expert multilingual translator. Your task is to translate the user's text and provide contextual variations, including back-translations to clarify the nuance.
 
             User's Text: "${text}"
-            Source Language: ${sourceLang}
+            ${sourceLanguageInstruction}
             Target Language: ${targetLang}
 
             Please provide the following in a JSON object, strictly following the schema:
-            1.  "standardTranslation": An object with "target" (the standard translation) and "source_nuance" (the back-translation of the target text into the source language to explain its nuance).
-            2.  "informal": An object with "target" (a casual, Gen Z style version) and "source_nuance" (its back-translation). If not applicable, return null.
-            3.  "polite": An object with "target" (a polite/formal version) and "source_nuance" (its back-translation). If not applicable, return null.
-            4.  "predictedSentences": An array of 3 objects. Each object should contain two keys: "target" (the predicted sentence in the target language) and "source" (the translation of that predicted sentence back into the source language). These should be logical follow-ups to the original text. IMPORTANT: If you generate a suggestion like "Do you have a [language] menu?", you MUST replace "[language]" with the actual source language, which is "${sourceLang}". For example, if the source language is Japanese, a predicted sentence might have a "target" of "Do you have a Japanese menu?" and a "source" of "日本語のメニューはありますか？".
+            1.  "detectedSourceLanguage": The name of the source language you detected, in English. This field should ONLY be included if the source language was set to auto-detect. Otherwise, it should be null or omitted.
+            2.  "standardTranslation": An object with "target" (the standard translation) and "source_nuance" (the back-translation of the target text into the source language to explain its nuance).
+            3.  "informal": An object with "target" (a casual, Gen Z style version) and "source_nuance" (its back-translation). If not applicable, return null.
+            4.  "polite": An object with "target" (a polite/formal version) and "source_nuance" (its back-translation). If not applicable, return null.
+            5.  "predictedSentences": An array of 3 objects. Each object should contain two keys: "target" (the predicted sentence in the target language) and "source" (the translation of that predicted sentence back into the source language). These should be logical follow-ups to the original text. IMPORTANT: If you generate a suggestion like "Do you have a [language] menu?", you MUST replace "[language]" with the actual source language. If you are auto-detecting, use the language you detected (the value you put in "detectedSourceLanguage").
 
             Respond ONLY with the JSON object.`;
 
@@ -176,6 +177,7 @@
                     responseSchema: {
                         type: "OBJECT",
                         properties: {
+                            "detectedSourceLanguage": { "type": "STRING" },
                             "standardTranslation": {
                                 type: "OBJECT",
                                 properties: {
@@ -240,6 +242,14 @@
         // --- DOM Manipulation ---
         function displayResults(data) {
             clearResults();
+            
+            if (data.detectedSourceLanguage) {
+                const detectedLang = data.detectedSourceLanguage;
+                const option = Array.from(sourceLangSelect.options).find(opt => opt.value.toLowerCase() === detectedLang.toLowerCase());
+                if (option) {
+                    sourceLangSelect.value = option.value;
+                }
+            }
 
             if(data.standardTranslation){
                 createResultCard('Standard', data.standardTranslation.target, data.standardTranslation.source_nuance, 'border-blue-800', '#1e3a8a'); // Navy
