@@ -194,7 +194,7 @@ Respond ONLY with the valid JSON object based on the schema.
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
                 generationConfig: { responseMimeType: "application/json" }
             };
-            const apiKey = ""; // Your API Key
+            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -224,11 +224,11 @@ Respond ONLY with the valid JSON object based on the schema.
             // Define colors
             const recommendedColors = {
                 borderColor: 'border-blue-800',
-                highlightBgColor: '#1e3a8a'
+                highlightBgColor: '#1e3a8a' // Navy
             };
             const defaultColors = {
-                borderColor: 'border-slate-500', // Desaturated blue
-                highlightBgColor: '#64748b'     // Desaturated blue
+                borderColor: 'border-teal-700', // New Teal Color
+                highlightBgColor: '#0f766e'     // New Teal Color
             };
 
             if (data.standardTranslation) {
@@ -264,46 +264,86 @@ Respond ONLY with the valid JSON object based on the schema.
                 return order[a.type] - order[b.type];
             });
 
-            // Create the cards from the sorted results
+            // Create the tab UI
+            const tabContainer = document.createElement('div');
+            const tabNav = document.createElement('div');
+            tabNav.className = 'flex bg-gray-100 rounded-lg p-1 space-x-1';
+            const tabContentContainer = document.createElement('div');
+            tabContentContainer.className = 'mt-4';
+
             results.forEach(result => {
-                const cardTitle = result.type === recommendedType ? `✨ ${result.title} (Recommended)` : result.title;
-                createResultCard(cardTitle, result.data.target, result.data.source_nuance, result.colors.borderColor, result.colors.highlightBgColor);
+                // Create Tab Button
+                const tabButton = document.createElement('button');
+                tabButton.textContent = result.type === recommendedType ? `✨ ${result.title}` : result.title;
+                tabButton.dataset.tab = result.type;
+                tabButton.className = 'w-full py-2 px-4 rounded-md font-bold transition-colors text-sm';
+
+                // Create Tab Content Panel
+                const contentPanel = document.createElement('div');
+                contentPanel.id = `content-${result.type}`;
+                contentPanel.className = 'hidden';
+                createResultCardContent(contentPanel, result.data, result.colors);
+
+                // Set active tab
+                if (result.type === recommendedType) {
+                    tabButton.classList.add('bg-white', 'text-gray-900', 'shadow');
+                    tabButton.classList.remove('text-gray-500');
+                    contentPanel.classList.remove('hidden');
+                } else {
+                    tabButton.classList.add('text-gray-500', 'hover:bg-gray-200');
+                }
+
+                tabNav.appendChild(tabButton);
+                tabContentContainer.appendChild(contentPanel);
             });
+
+            tabNav.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const targetTab = e.target.dataset.tab;
+                    tabNav.querySelectorAll('button').forEach(btn => {
+                        btn.classList.remove('bg-white', 'text-gray-900', 'shadow');
+                        btn.classList.add('text-gray-500', 'hover:bg-gray-200');
+                    });
+                    e.target.classList.add('bg-white', 'text-gray-900', 'shadow');
+                    e.target.classList.remove('text-gray-500', 'hover:bg-gray-200');
+                    tabContentContainer.querySelectorAll('div[id^="content-"]').forEach(panel => {
+                        panel.classList.add('hidden');
+                    });
+                    document.getElementById(`content-${targetTab}`).classList.remove('hidden');
+                }
+            });
+
+            tabContainer.appendChild(tabNav);
+            tabContainer.appendChild(tabContentContainer);
+            translationCards.appendChild(tabContainer);
 
             if(data.predictedSentences?.length > 0) createPredictedSentencesCard(data.predictedSentences);
         }
 
-        function createResultCard(titleText, contentText, nuanceText, borderColor, highlightBgColor) {
-            const card = document.createElement('div');
-            card.className = `bg-white p-4 rounded-lg border-2 ${borderColor}`;
-            const header = document.createElement('div');
-            header.className = 'flex justify-between items-center mb-3';
-            const title = document.createElement('h3');
-            title.className = `text-sm font-extrabold text-gray-400 tracking-wider uppercase`;
-            title.textContent = titleText;
-            header.appendChild(title);
-            card.appendChild(header);
+        function createResultCardContent(panel, translationData, colors) {
             const contentBox = document.createElement('div');
-            contentBox.style.backgroundColor = highlightBgColor;
+            contentBox.style.backgroundColor = colors.highlightBgColor;
             contentBox.className = 'p-3 rounded-lg flex justify-between items-center';
+            
             const contentTextElement = document.createElement('span');
             contentTextElement.className = 'text-white text-xl font-bold';
-            contentTextElement.textContent = contentText;
+            contentTextElement.textContent = translationData.target;
             contentBox.appendChild(contentTextElement);
+
             const controlsWrapper = document.createElement('div');
             controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
-            controlsWrapper.appendChild(createSpeakButton(contentText, 'text-white'));
-            controlsWrapper.appendChild(createCopyButton(contentText, 'text-white'));
+            controlsWrapper.appendChild(createSpeakButton(translationData.target, 'text-white'));
+            controlsWrapper.appendChild(createCopyButton(translationData.target, 'text-white'));
             contentBox.appendChild(controlsWrapper);
-            card.appendChild(contentBox);
+            panel.appendChild(contentBox);
+
             const nuanceContainer = document.createElement('div');
             nuanceContainer.className = 'mt-3 border-t border-gray-200 pt-3';
             const nuanceTextElement = document.createElement('p');
             nuanceTextElement.className = 'text-sm text-[#1B1B1D] font-bold';
-            nuanceTextElement.textContent = nuanceText;
+            nuanceTextElement.textContent = translationData.source_nuance;
             nuanceContainer.appendChild(nuanceTextElement);
-            card.appendChild(nuanceContainer);
-            translationCards.appendChild(card);
+            panel.appendChild(nuanceContainer);
         }
         
         function createPredictedSentencesCard(sentences) {
