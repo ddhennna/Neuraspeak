@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuraSpeak Beta</title>
+    <title>NeuraSpeak AI Translator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -164,9 +164,9 @@ Your primary task is to translate the user's text, provide stylistic variations,
 - Target Language: ${targetLang}
 
 [INSTRUCTIONS]
-1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: Standard, Informal, and Polite.
+1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: Standard, Casual, and Polite.
 2.  **Back-Translate for Nuance**: For each of the three translation variations, create a "source_nuance". This field MUST be a direct, literal back-translation of your translated text into the original source language. It is NOT an explanation.
-3.  **Recommend Best Nuance**: Based on the user's text, determine the most appropriate nuance. Add a field "recommendedNuance" to the JSON root. Its value MUST be one of: "standard", "informal", or "polite".
+3.  **Recommend Best Nuance**: Based on the user's text, determine the most appropriate nuance. Add a field "recommendedNuance" to the JSON root. Its value MUST be one of: "standard", "casual", or "polite".
 4.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide the sentence in the target language and its meaning in the source language.
 5.  **Format Output**: Your final output must be a single, valid JSON object and nothing else.
 
@@ -178,8 +178,8 @@ Your primary task is to translate the user's text, provide stylistic variations,
 {
   "recommendedNuance": "standard",
   "standardTranslation": { "target": "Please show me the menu.", "source_nuance": "メニューを見せてください。" },
-  "informal": { "target": "Can I see the menu?", "source_nuance": "メニュー見てもいい？" },
-  "polite": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" },
+  "casualTranslation": { "target": "Can I see the menu?", "source_nuance": "メニュー見てもいい？" },
+  "politeTranslation": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" },
   "predictedSentences": [
     { "target": "I'll have this, please.", "source": "これをお願いします。" },
     { "target": "Do you have any recommendations?", "source": "何かおすすめはありますか？" },
@@ -223,9 +223,9 @@ Respond ONLY with the valid JSON object based on the schema.
 
             // Define colors for each nuance
             const colorMap = {
-                standard: { highlightBgColor: '#1e3a8a' }, // Navy
-                informal: { highlightBgColor: '#FF6F61' }, // Coral Pink
-                polite:   { highlightBgColor: '#1B1B1D' }  // Main Dark Color
+                standard: { highlightBgColor: '#1B1B1D' }, // Black
+                casual:   { highlightBgColor: '#FF6F61' }, // Coral Pink
+                polite:   { highlightBgColor: '#1e3a8a' }  // Navy
             };
 
             if (data.standardTranslation) {
@@ -236,19 +236,19 @@ Respond ONLY with the valid JSON object based on the schema.
                     colors: colorMap.standard
                 });
             }
-            if (data.informal) {
+            if (data.casualTranslation) {
                 results.push({ 
-                    type: 'informal', 
-                    title: 'Informal', 
-                    data: data.informal, 
-                    colors: colorMap.informal
+                    type: 'casual', 
+                    title: 'Casual', 
+                    data: data.casualTranslation, 
+                    colors: colorMap.casual
                 });
             }
-            if (data.polite) {
+            if (data.politeTranslation) {
                 results.push({ 
                     type: 'polite', 
                     title: 'Polite', 
-                    data: data.polite, 
+                    data: data.politeTranslation, 
                     colors: colorMap.polite
                 });
             }
@@ -257,7 +257,7 @@ Respond ONLY with the valid JSON object based on the schema.
             results.sort((a, b) => {
                 if (a.type === recommendedType) return -1;
                 if (b.type === recommendedType) return 1;
-                const order = { standard: 1, informal: 2, polite: 3 };
+                const order = { standard: 1, casual: 2, polite: 3 };
                 return order[a.type] - order[b.type];
             });
 
@@ -271,9 +271,14 @@ Respond ONLY with the valid JSON object based on the schema.
             results.forEach(result => {
                 // Create Tab Button
                 const tabButton = document.createElement('button');
-                tabButton.textContent = result.type === recommendedType ? `✨ ${result.title}` : result.title;
                 tabButton.dataset.tab = result.type;
-                tabButton.className = 'w-full py-2 px-4 rounded-md font-bold transition-colors text-sm';
+                tabButton.className = 'w-full py-2 px-4 rounded-md font-bold transition-colors text-sm flex items-center justify-center gap-2';
+
+                if (result.type === recommendedType) {
+                    tabButton.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"></path></svg> ${result.title}`;
+                } else {
+                    tabButton.textContent = result.title;
+                }
 
                 // Create Tab Content Panel
                 const contentPanel = document.createElement('div');
@@ -295,14 +300,15 @@ Respond ONLY with the valid JSON object based on the schema.
             });
 
             tabNav.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
-                    const targetTab = e.target.dataset.tab;
+                const clickedButton = e.target.closest('button');
+                if (clickedButton) {
+                    const targetTab = clickedButton.dataset.tab;
                     tabNav.querySelectorAll('button').forEach(btn => {
                         btn.classList.remove('bg-white', 'text-gray-900', 'shadow');
                         btn.classList.add('text-gray-500', 'hover:bg-gray-200');
                     });
-                    e.target.classList.add('bg-white', 'text-gray-900', 'shadow');
-                    e.target.classList.remove('text-gray-500', 'hover:bg-gray-200');
+                    clickedButton.classList.add('bg-white', 'text-gray-900', 'shadow');
+                    clickedButton.classList.remove('text-gray-500', 'hover:bg-gray-200');
                     tabContentContainer.querySelectorAll('div[id^="content-"]').forEach(panel => {
                         panel.classList.add('hidden');
                     });
