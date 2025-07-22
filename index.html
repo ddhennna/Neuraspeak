@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuraSpeak</title>
+    <title>NeuraSpeak AI Translator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,7 +38,7 @@
     <div class="w-full max-w-2xl mx-auto relative">
         <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200 relative z-10">
             <!-- Header -->
-            <div class="text-center mb-8">
+            <div class="text-center mb-8 relative">
                 <h1 class="text-4xl sm:text-5xl font-extrabold text-[#1B1B1D] tracking-tighter">NeuraSpeak</h1>
                 <p class="text-gray-500 mt-2 font-semibold">Instant. Nuanced. Truly You.</p>
             </div>
@@ -46,7 +46,7 @@
             <!-- Language Selection & Input -->
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <select id="source-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#D71921]/50 focus:border-[#D71921] outline-none transition">
+                    <select id="source-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-blue-800/50 focus:border-blue-800 outline-none transition">
                         <option value="auto" selected>自動認識 (Auto Detect)</option>
                         <option value="English">English</option>
                         <option value="Japanese">Japanese</option>
@@ -108,9 +108,7 @@
         // --- TTS Voice Loading ---
         let voices = [];
         function populateVoiceList() {
-            if(typeof speechSynthesis === 'undefined') {
-                return;
-            }
+            if(typeof speechSynthesis === 'undefined') return;
             voices = speechSynthesis.getVoices();
         }
         populateVoiceList();
@@ -130,22 +128,15 @@
         // --- Main Translation Handler ---
         async function handleTranslation() {
             const text = textInput.value.trim();
-            const sourceLang = sourceLangSelect.value;
-            const targetLang = targetLangSelect.value;
-
             if (!text) {
                 showError("Please enter some text to translate.");
                 return;
             }
-
             showLoader(true);
             clearResults();
-
             try {
-                const result = await getAiTranslation(text, sourceLang, targetLang);
-                if (result) {
-                    displayResults(result);
-                }
+                const result = await getAiTranslation(text, sourceLangSelect.value, targetLangSelect.value);
+                if (result) displayResults(result);
             } catch (error) {
                 console.error("Translation error:", error);
                 showError("Sorry, an error occurred while translating. Please try again.");
@@ -154,20 +145,18 @@
             }
         }
 
-        // --- AI Translation API Call ---
+        // --- AI API Calls ---
         async function getAiTranslation(text, sourceLang, targetLang) {
-            
             let sourceLanguageInstruction = `Source Language: ${sourceLang}`;
             if (sourceLang === 'auto') {
                 sourceLanguageInstruction = `Source Language: Auto-detect`;
             }
-
             const prompt = `
 [ROLE]
 You are a world-class, expert multilingual translator and linguist. Your accuracy is crucial.
 
 [TASK]
-Your primary task is to translate the user's text, provide stylistic variations, and predict logical follow-up phrases. You must strictly follow all instructions and output formats.
+Your primary task is to translate the user's text, provide stylistic variations, recommend the best nuance, and predict logical follow-up phrases. You must strictly follow all instructions and output formats.
 
 [INPUT]
 - User Text: "${text}"
@@ -177,260 +166,194 @@ Your primary task is to translate the user's text, provide stylistic variations,
 [INSTRUCTIONS]
 1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: Standard, Informal, and Polite.
 2.  **Back-Translate for Nuance**: For each of the three translation variations, create a "source_nuance". This field MUST be a direct, literal back-translation of your translated text into the original source language. It is NOT an explanation.
-3.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide the sentence in the target language and its meaning in the source language. **Crucially, if a predicted sentence involves asking for something in a specific language (e.g., a menu), you must use the actual source language name.** For example, if the source language is Japanese, a valid prediction would be "Do you have a Japanese menu?".
-4.  **Format Output**: Your final output must be a single, valid JSON object and nothing else. Adhere strictly to the JSON schema provided.
+3.  **Recommend Best Nuance**: Based on the user's text, determine the most appropriate nuance. Add a field "recommendedNuance" to the JSON root. Its value MUST be one of: "standard", "informal", or "polite".
+4.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide the sentence in the target language and its meaning in the source language.
+5.  **Format Output**: Your final output must be a single, valid JSON object and nothing else.
 
 [EXAMPLE OF PERFECT OUTPUT]
-This is an example to show you the required format and quality.
 - User Text: "メニューを見せてください。"
 - Source Language: "Japanese"
 - Target Language: "English"
 - Expected JSON Output:
 {
-  "standardTranslation": {
-    "target": "Please show me the menu.",
-    "source_nuance": "メニューを見せてください。"
-  },
-  "informal": {
-    "target": "Can I see the menu?",
-    "source_nuance": "メニュー見てもいい？"
-  },
-  "polite": {
-    "target": "Could you please bring me the menu?",
-    "source_nuance": "メニューを持ってきていただけますか？"
-  },
+  "recommendedNuance": "standard",
+  "standardTranslation": { "target": "Please show me the menu.", "source_nuance": "メニューを見せてください。" },
+  "informal": { "target": "Can I see the menu?", "source_nuance": "メニュー見てもいい？" },
+  "polite": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" },
   "predictedSentences": [
-    {
-      "target": "I'll have this, please.",
-      "source": "これをお願いします。"
-    },
-    {
-      "target": "Do you have any recommendations?",
-      "source": "何かおすすめはありますか？"
-    },
-    {
-      "target": "The check, please.",
-      "source": "お会計をお願いします。"
-    }
+    { "target": "I'll have this, please.", "source": "これをお願いします。" },
+    { "target": "Do you have any recommendations?", "source": "何かおすすめはありますか？" },
+    { "target": "The check, please.", "source": "お会計をお願いします。" }
   ]
 }
 
 [OUTPUT FORMAT]
 Respond ONLY with the valid JSON object based on the schema.
 `;
-
             const payload = {
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "detectedSourceLanguage": { "type": "STRING" },
-                            "standardTranslation": {
-                                type: "OBJECT",
-                                properties: {
-                                    "target": { "type": "STRING" },
-                                    "source_nuance": { "type": "STRING" }
-                                },
-                                required: ["target", "source_nuance"]
-                            },
-                            "informal": {
-                                type: "OBJECT",
-                                properties: {
-                                    "target": { "type": "STRING" },
-                                    "source_nuance": { "type": "STRING" }
-                                }
-                            },
-                            "polite": {
-                                type: "OBJECT",
-                                properties: {
-                                    "target": { "type": "STRING" },
-                                    "source_nuance": { "type": "STRING" }
-                                }
-                            },
-                            "predictedSentences": {
-                                "type": "ARRAY",
-                                "items": {
-                                    "type": "OBJECT",
-                                    "properties": {
-                                        "target": { "type": "STRING" },
-                                        "source": { "type": "STRING" }
-                                    },
-                                    "required": ["target", "source"]
-                                }
-                            }
-                        },
-                        required: ["standardTranslation", "predictedSentences"]
-                    }
-                }
+                generationConfig: { responseMimeType: "application/json" }
             };
-            
-            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // API key will be managed by the environment
+            const apiKey = ""; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
-            if (!response.ok) {
-                throw new Error(`API request failed with status ${response.status}`);
-            }
-
+            if (!response.ok) throw new Error(`API request failed`);
             const result = await response.json();
-            
-            if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
                 return JSON.parse(result.candidates[0].content.parts[0].text);
             } else {
-                throw new Error("Invalid response structure from API.");
+                throw new Error("Invalid response from API.");
             }
         }
 
         // --- DOM Manipulation ---
         function displayResults(data) {
             clearResults();
-            
             if (data.detectedSourceLanguage) {
-                const detectedLang = data.detectedSourceLanguage;
-                const option = Array.from(sourceLangSelect.options).find(opt => opt.value.toLowerCase() === detectedLang.toLowerCase());
-                if (option) {
-                    sourceLangSelect.value = option.value;
-                }
+                const option = Array.from(sourceLangSelect.options).find(opt => opt.value.toLowerCase() === data.detectedSourceLanguage.toLowerCase());
+                if (option) sourceLangSelect.value = option.value;
             }
 
-            if(data.standardTranslation){
-                createResultCard('Standard', data.standardTranslation.target, data.standardTranslation.source_nuance, 'border-blue-800', '#1e3a8a'); // Navy
+            const results = [];
+            const recommendedType = data.recommendedNuance || 'standard';
+
+            // Define colors
+            const recommendedColors = {
+                borderColor: 'border-blue-800',
+                highlightBgColor: '#1e3a8a'
+            };
+            const defaultColors = {
+                borderColor: 'border-slate-500', // Desaturated blue
+                highlightBgColor: '#64748b'     // Desaturated blue
+            };
+
+            if (data.standardTranslation) {
+                results.push({ 
+                    type: 'standard', 
+                    title: 'Standard', 
+                    data: data.standardTranslation, 
+                    colors: (recommendedType === 'standard') ? recommendedColors : defaultColors
+                });
             }
             if (data.informal) {
-                createResultCard('Informal (Gen Z)', data.informal.target, data.informal.source_nuance, 'border-[#D71921]', '#D71921'); // Red
+                results.push({ 
+                    type: 'informal', 
+                    title: 'Informal', 
+                    data: data.informal, 
+                    colors: (recommendedType === 'informal') ? recommendedColors : defaultColors
+                });
             }
             if (data.polite) {
-                createResultCard('Polite', data.polite.target, data.polite.source_nuance, 'border-[#1B1B1D]', '#1B1B1D'); // Dark Gray/Black
-            }
-
-            if (data.predictedSentences && data.predictedSentences.length > 0) {
-                const container = document.createElement('div');
-                container.className = 'bg-gray-50 p-4 rounded-lg border-2 border-gray-200';
-                
-                const title = document.createElement('h3');
-                title.className = 'text-sm font-extrabold text-gray-400 mb-3 tracking-wider uppercase';
-                title.textContent = 'Next Actions';
-                container.appendChild(title);
-
-                const list = document.createElement('div');
-                list.className = 'space-y-2';
-                data.predictedSentences.forEach(sentenceObj => {
-                    const item = document.createElement('div');
-                    item.className = 'bg-white p-3 rounded-md border border-gray-200';
-
-                    const textWrapper = document.createElement('div');
-                    textWrapper.className = 'flex-grow pr-2';
-
-                    const targetText = document.createElement('p');
-                    targetText.className = 'text-[#1B1B1D] font-bold';
-                    targetText.textContent = sentenceObj.target;
-                    textWrapper.appendChild(targetText);
-                    
-                    const sourceText = document.createElement('p');
-                    sourceText.className = 'text-sm text-gray-500';
-                    sourceText.textContent = sentenceObj.source;
-                    textWrapper.appendChild(sourceText);
-
-                    const itemContainer = document.createElement('div');
-                    itemContainer.className = 'flex items-center justify-between';
-                    itemContainer.appendChild(textWrapper);
-
-                    const controlsWrapper = document.createElement('div');
-                    controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
-                    controlsWrapper.appendChild(createSpeakButton(sentenceObj.target, 'text-gray-400'));
-                    controlsWrapper.appendChild(createCopyButton(sentenceObj.target, 'text-gray-400'));
-                    itemContainer.appendChild(controlsWrapper);
-
-                    item.appendChild(itemContainer);
-                    list.appendChild(item);
+                results.push({ 
+                    type: 'polite', 
+                    title: 'Polite', 
+                    data: data.polite, 
+                    colors: (recommendedType === 'polite') ? recommendedColors : defaultColors
                 });
-                container.appendChild(list);
-                translationCards.appendChild(container);
             }
+
+            // Sort to bring the recommended one to the top
+            results.sort((a, b) => {
+                if (a.type === recommendedType) return -1;
+                if (b.type === recommendedType) return 1;
+                const order = { standard: 1, informal: 2, polite: 3 };
+                return order[a.type] - order[b.type];
+            });
+
+            // Create the cards from the sorted results
+            results.forEach(result => {
+                const cardTitle = result.type === recommendedType ? `✨ ${result.title} (Recommended)` : result.title;
+                createResultCard(cardTitle, result.data.target, result.data.source_nuance, result.colors.borderColor, result.colors.highlightBgColor);
+            });
+
+            if(data.predictedSentences?.length > 0) createPredictedSentencesCard(data.predictedSentences);
         }
 
         function createResultCard(titleText, contentText, nuanceText, borderColor, highlightBgColor) {
             const card = document.createElement('div');
             card.className = `bg-white p-4 rounded-lg border-2 ${borderColor}`;
-
             const header = document.createElement('div');
             header.className = 'flex justify-between items-center mb-3';
-            
             const title = document.createElement('h3');
             title.className = `text-sm font-extrabold text-gray-400 tracking-wider uppercase`;
             title.textContent = titleText;
             header.appendChild(title);
-            
             card.appendChild(header);
-
             const contentBox = document.createElement('div');
             contentBox.style.backgroundColor = highlightBgColor;
             contentBox.className = 'p-3 rounded-lg flex justify-between items-center';
-
             const contentTextElement = document.createElement('span');
             contentTextElement.className = 'text-white text-xl font-bold';
             contentTextElement.textContent = contentText;
             contentBox.appendChild(contentTextElement);
-
             const controlsWrapper = document.createElement('div');
             controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
             controlsWrapper.appendChild(createSpeakButton(contentText, 'text-white'));
             controlsWrapper.appendChild(createCopyButton(contentText, 'text-white'));
             contentBox.appendChild(controlsWrapper);
-            
             card.appendChild(contentBox);
-            
             const nuanceContainer = document.createElement('div');
             nuanceContainer.className = 'mt-3 border-t border-gray-200 pt-3';
-
             const nuanceTextElement = document.createElement('p');
             nuanceTextElement.className = 'text-sm text-[#1B1B1D] font-bold';
             nuanceTextElement.textContent = nuanceText;
-            
             nuanceContainer.appendChild(nuanceTextElement);
             card.appendChild(nuanceContainer);
-
             translationCards.appendChild(card);
         }
+        
+        function createPredictedSentencesCard(sentences) {
+            const container = document.createElement('div');
+            container.className = 'bg-gray-50 p-4 rounded-lg border-2 border-gray-200';
+            const title = document.createElement('h3');
+            title.className = 'text-sm font-extrabold text-gray-400 mb-3 tracking-wider uppercase';
+            title.textContent = 'Next Actions';
+            container.appendChild(title);
+            const list = document.createElement('div');
+            list.className = 'space-y-2';
+            sentences.forEach(sentenceObj => {
+                const item = document.createElement('div');
+                item.className = 'bg-white p-3 rounded-md border border-gray-200 flex justify-between items-center';
+                const textWrapper = document.createElement('div');
+                textWrapper.className = 'flex-grow pr-2';
+                const targetText = document.createElement('p');
+                targetText.className = 'text-[#1B1B1D] font-bold';
+                targetText.textContent = sentenceObj.target;
+                textWrapper.appendChild(targetText);
+                const sourceText = document.createElement('p');
+                sourceText.className = 'text-sm text-gray-500';
+                sourceText.textContent = sentenceObj.source;
+                textWrapper.appendChild(sourceText);
+                item.appendChild(textWrapper);
+                const controlsWrapper = document.createElement('div');
+                controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
+                controlsWrapper.appendChild(createSpeakButton(sentenceObj.target, 'text-gray-400'));
+                controlsWrapper.appendChild(createCopyButton(sentenceObj.target, 'text-gray-400'));
+                item.appendChild(controlsWrapper);
+                list.appendChild(item);
+            });
+            container.appendChild(list);
+            translationCards.appendChild(container);
+        }
 
+        // --- Utility Functions ---
         function getLangCode(langName) {
-            const langMap = {
-                'English': 'en-US',
-                'Japanese': 'ja-JP',
-                'Spanish': 'es-ES',
-                'French': 'fr-FR',
-                'German': 'de-DE',
-                'Chinese': 'zh-CN',
-                'Korean': 'ko-KR',
-            };
+            const langMap = {'English': 'en-US', 'Japanese': 'ja-JP', 'Spanish': 'es-ES', 'French': 'fr-FR', 'German': 'de-DE', 'Chinese': 'zh-CN', 'Korean': 'ko-KR'};
             return langMap[langName] || 'en-US';
         }
 
         function speakText(text, langCode) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Stop any previous speech
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = langCode;
-                
-                // Find a specific voice for the language for better quality
-                const voice = voices.find(v => v.lang === langCode);
-                if (voice) {
-                    utterance.voice = voice;
-                } else {
-                    console.warn(`No specific voice found for ${langCode}, using browser default.`);
-                }
-
-                window.speechSynthesis.speak(utterance);
-            } else {
-                alert("Sorry, your browser does not support text-to-speech.");
-            }
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+            const voice = voices.find(v => v.lang === langCode);
+            if (voice) utterance.voice = voice;
+            window.speechSynthesis.speak(utterance);
         }
 
         function createSpeakButton(textToSpeak, iconColor) {
@@ -438,12 +361,9 @@ Respond ONLY with the valid JSON object based on the schema.
             button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
             button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
             button.title = "音声で聞く";
-
             button.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent card click
-                const targetLangName = targetLangSelect.value;
-                const langCode = getLangCode(targetLangName);
-                speakText(textToSpeak, langCode);
+                e.stopPropagation();
+                speakText(textToSpeak, getLangCode(targetLangSelect.value));
             });
             return button;
         }
@@ -453,38 +373,23 @@ Respond ONLY with the valid JSON object based on the schema.
             button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
             button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
             button.title = "クリップボードにコピー";
-            
             button.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent card click
-                const textarea = document.createElement('textarea');
-                textarea.value = textToCopy;
-                document.body.appendChild(textarea);
-                textarea.select();
-                try {
-                    document.execCommand('copy');
+                e.stopPropagation();
+                const originalIcon = button.innerHTML;
+                navigator.clipboard.writeText(textToCopy).then(() => {
                     button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M20 6 9 17l-5-5"/></svg>`;
-                    setTimeout(() => {
-                         button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-                    }, 2000);
-                } catch (err) {
-                    console.error('Failed to copy text: ', err);
-                }
-                document.body.removeChild(textarea);
+                    setTimeout(() => { button.innerHTML = originalIcon; }, 2000);
+                }).catch(err => console.error('Failed to copy text: ', err));
             });
             return button;
         }
 
         function showLoader(isLoading) {
             resultsContainer.classList.remove('hidden');
-            if (isLoading) {
-                loader.classList.remove('hidden');
-                translateBtn.disabled = true;
-                translateBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                loader.classList.add('hidden');
-                translateBtn.disabled = false;
-                translateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
+            loader.classList.toggle('hidden', !isLoading);
+            translateBtn.disabled = isLoading;
+            translateBtn.classList.toggle('opacity-50', isLoading);
+            translateBtn.classList.toggle('cursor-not-allowed', isLoading);
         }
 
         function showError(msg) {
@@ -497,9 +402,6 @@ Respond ONLY with the valid JSON object based on the schema.
             errorMessage.classList.add('hidden');
             translationCards.innerHTML = '';
         }
-    </script>
-</body>
-</html>
     </script>
 </body>
 </html>
