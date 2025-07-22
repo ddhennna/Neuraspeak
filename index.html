@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuraSpeak AI Translator</title>
+    <title>NeuraSpeak Beta</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -194,7 +194,7 @@ Respond ONLY with the valid JSON object based on the schema.
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
                 generationConfig: { responseMimeType: "application/json" }
             };
-            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
+            const apiKey = ""; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -221,14 +221,11 @@ Respond ONLY with the valid JSON object based on the schema.
             const results = [];
             const recommendedType = data.recommendedNuance || 'standard';
 
-            // Define colors
-            const recommendedColors = {
-                borderColor: 'border-blue-800',
-                highlightBgColor: '#1e3a8a' // Navy
-            };
-            const defaultColors = {
-                borderColor: 'border-teal-700', // New Teal Color
-                highlightBgColor: '#0f766e'     // New Teal Color
+            // Define colors for each nuance
+            const colorMap = {
+                standard: { highlightBgColor: '#1e3a8a' }, // Navy
+                informal: { highlightBgColor: '#FF6F61' }, // Coral Pink
+                polite:   { highlightBgColor: '#1B1B1D' }  // Main Dark Color
             };
 
             if (data.standardTranslation) {
@@ -236,7 +233,7 @@ Respond ONLY with the valid JSON object based on the schema.
                     type: 'standard', 
                     title: 'Standard', 
                     data: data.standardTranslation, 
-                    colors: (recommendedType === 'standard') ? recommendedColors : defaultColors
+                    colors: colorMap.standard
                 });
             }
             if (data.informal) {
@@ -244,7 +241,7 @@ Respond ONLY with the valid JSON object based on the schema.
                     type: 'informal', 
                     title: 'Informal', 
                     data: data.informal, 
-                    colors: (recommendedType === 'informal') ? recommendedColors : defaultColors
+                    colors: colorMap.informal
                 });
             }
             if (data.polite) {
@@ -252,7 +249,7 @@ Respond ONLY with the valid JSON object based on the schema.
                     type: 'polite', 
                     title: 'Polite', 
                     data: data.polite, 
-                    colors: (recommendedType === 'polite') ? recommendedColors : defaultColors
+                    colors: colorMap.polite
                 });
             }
 
