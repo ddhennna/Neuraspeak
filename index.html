@@ -32,6 +32,15 @@
                 transform: rotate(360deg);
             }
         }
+        .clickable-word {
+            cursor: pointer;
+            display: inline-block;
+            transition: background-color 0.2s;
+            border-radius: 4px;
+        }
+        .clickable-word:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 <body class="bg-white text-[#1B1B1D] flex items-center justify-center min-h-screen p-4">
@@ -155,7 +164,7 @@
             
             const prompt = `
 [ROLE]
-You are a world-class, expert multilingual translator and linguist who is an expert on Gen Z slang.
+You are a world-class, expert multilingual translator and linguist.
 [TASK]
 Translate the user's text, provide stylistic variations, and recommend the best nuance.
 [INPUT]
@@ -163,8 +172,8 @@ Translate the user's text, provide stylistic variations, and recommend the best 
 - ${sourceLanguageInstruction}
 - Target Language: ${targetLang}
 [INSTRUCTIONS]
-1.  **Analyze and Translate**: Provide three variations: Standard, Casual (very informal, Gen Z slang), and Polite.
-2.  **Back-Translate**: For each variation, provide a "source_nuance" which is a direct back-translation.
+1.  **Analyze and Translate**: Provide three variations: Standard, Casual, and Polite.
+2.  **Back-Translate**: For each variation, provide a "source_nuance". This field MUST be a direct, literal back-translation of your translated text into the **source language**.
 3.  **Recommend Nuance**: Determine the best nuance ("standard", "casual", or "polite") and specify it in "recommendedNuance".
 4.  **Format Output**: Respond ONLY with a single, valid JSON object.
 [EXAMPLE OF PERFECT OUTPUT]
@@ -175,7 +184,7 @@ Translate the user's text, provide stylistic variations, and recommend the best 
 {
   "recommendedNuance": "standard",
   "standardTranslation": { "target": "Please show me the menu.", "source_nuance": "メニューを見せてください。" },
-  "casualTranslation": { "target": "Lemme see the menu.", "source_nuance": "メニュー見せて。" },
+  "casualTranslation": { "target": "Can I see the menu?", "source_nuance": "メニュー見てもいい？" },
   "politeTranslation": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" }
 }`;
             const payload = { 
