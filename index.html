@@ -173,7 +173,7 @@ Translate the user's text, provide stylistic variations, and recommend the best 
 - Target Language: ${targetLang}
 [INSTRUCTIONS]
 1.  **Analyze and Translate**: Provide three variations: Standard, Casual, and Polite.
-2.  **Back-Translate**: For each variation, provide a "source_nuance". This field MUST be a direct, literal back-translation of your translated text, and it MUST be written in the same language as the original input (source language). Do NOT use (target language).
+2.  **Back-Translate**: For each variation, provide a "source_nuance". This field MUST be a direct, literal back-translation of your translated text into the **source language**.
 3.  **Recommend Nuance**: Determine the best nuance ("standard", "casual", or "polite") and specify it in "recommendedNuance".
 4.  **Format Output**: Respond ONLY with a single, valid JSON object.
 [EXAMPLE OF PERFECT OUTPUT]
@@ -203,7 +203,7 @@ Translate the user's text, provide stylistic variations, and recommend the best 
                     }
                 }
             };
-            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
+            const apiKey = ""; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API request failed`);
@@ -256,7 +256,7 @@ Respond ONLY with a JSON object containing a "predictedSentences" array.
                     }
                 }
             };
-            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
+            const apiKey = ""; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API request failed`);
@@ -369,7 +369,7 @@ Respond ONLY with a JSON object containing a "predictedSentences" array.
             const container = document.getElementById('next-actions-container');
             container.innerHTML = ''; // Clear previous
             const button = document.createElement('button');
-            button.innerHTML = `次のフレーズを提案`;
+            button.innerHTML = `✨ 次のフレーズを提案`;
             button.className = 'w-full bg-gray-100 text-gray-800 font-bold text-sm py-3 px-4 rounded-lg hover:bg-gray-200 transition';
             const suggestionsDiv = document.createElement('div');
             suggestionsDiv.className = 'hidden mt-4';
