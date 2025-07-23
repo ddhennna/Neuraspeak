@@ -203,7 +203,7 @@ Translate the user's text, provide stylistic variations, and recommend the best 
                     }
                 }
             };
-            const apiKey = ""; // Your API Key
+            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API request failed`);
@@ -256,7 +256,7 @@ Respond ONLY with a JSON object containing a "predictedSentences" array.
                     }
                 }
             };
-            const apiKey = ""; // Your API Key
+            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API request failed`);
