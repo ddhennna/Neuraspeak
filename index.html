@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeuraSpeak AI Translator</title>
+    <title>NeuraSpeak AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +31,15 @@
             100% {
                 transform: rotate(360deg);
             }
+        }
+        .clickable-word {
+            cursor: pointer;
+            display: inline-block;
+            transition: background-color 0.2s;
+            border-radius: 4px;
+        }
+        .clickable-word:hover {
+            background-color: rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
@@ -85,8 +94,14 @@
                 <!-- Error Message -->
                 <div id="error-message" class="text-center text-red-500 font-bold hidden"></div>
 
-                <!-- Translation Cards -->
-                <div id="translation-cards" class="space-y-4"></div>
+                <!-- Translation Tabs -->
+                <div id="translation-tabs-container"></div>
+                
+                <!-- Key Word Examples -->
+                <div id="key-word-container" class="space-y-4"></div>
+
+                <!-- On-demand Next Actions -->
+                <div id="next-actions-container" class="space-y-4"></div>
             </div>
         </div>
         <!-- Signature Footer -->
@@ -103,7 +118,7 @@
         const resultsContainer = document.getElementById('results-container');
         const loader = document.getElementById('loader-container');
         const errorMessage = document.getElementById('error-message');
-        const translationCards = document.getElementById('translation-cards');
+        const translationTabsContainer = document.getElementById('translation-tabs-container');
 
         // --- TTS Voice Loading ---
         let voices = [];
@@ -136,7 +151,7 @@
             clearResults();
             try {
                 const result = await getAiTranslation(text, sourceLangSelect.value, targetLangSelect.value);
-                if (result) displayResults(result);
+                if (result) displayResults(result, text);
             } catch (error) {
                 console.error("Translation error:", error);
                 showError("Sorry, an error occurred while translating. Please try again.");
@@ -148,70 +163,117 @@
         // --- AI API Calls ---
         async function getAiTranslation(text, sourceLang, targetLang) {
             let sourceLanguageInstruction = `Source Language: ${sourceLang}`;
-            if (sourceLang === 'auto') {
-                sourceLanguageInstruction = `Source Language: Auto-detect`;
-            }
+            if (sourceLang === 'auto') sourceLanguageInstruction = `Source Language: Auto-detect`;
+            
             const prompt = `
 [ROLE]
-You are a world-class, expert multilingual translator and linguist. Your accuracy is crucial.
-
+You are a world-class, expert multilingual translator and linguist.
 [TASK]
-Your primary task is to translate the user's text, provide stylistic variations, recommend the best nuance, and predict logical follow-up phrases. You must strictly follow all instructions and output formats.
-
+Translate the user's text, provide stylistic variations, and recommend the best nuance.
 [INPUT]
 - User Text: "${text}"
 - ${sourceLanguageInstruction}
 - Target Language: ${targetLang}
-
 [INSTRUCTIONS]
-1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: Standard, Casual, and Polite.
-2.  **Back-Translate for Nuance**: For each of the three translation variations, create a "source_nuance". This field MUST be a direct, literal back-translation of your translated text into the original source language. It is NOT an explanation.
-3.  **Recommend Best Nuance**: Based on the user's text, determine the most appropriate nuance. Add a field "recommendedNuance" to the JSON root. Its value MUST be one of: "standard", "casual", or "polite".
-4.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide the sentence in the target language and its meaning in the source language.
-5.  **Format Output**: Your final output must be a single, valid JSON object and nothing else.
-
-[EXAMPLE OF PERFECT OUTPUT]
+1.  **Analyze and Translate**: Provide three variations: Standard, Casual, and Polite.
+2.  **Back-Translate**: For each variation, provide a "source_nuance" which is a direct back-translation.
+3.  **Recommend Nuance**: Determine the best nuance ("standard", "casual", or "polite") and specify it in "recommendedNuance".
+4.  **Format Output**: Respond ONLY with a single, valid JSON object.
+[EXAMPLE]
 - User Text: "メニューを見せてください。"
-- Source Language: "Japanese"
-- Target Language: "English"
 - Expected JSON Output:
 {
   "recommendedNuance": "standard",
   "standardTranslation": { "target": "Please show me the menu.", "source_nuance": "メニューを見せてください。" },
   "casualTranslation": { "target": "Can I see the menu?", "source_nuance": "メニュー見てもいい？" },
-  "politeTranslation": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" },
+  "politeTranslation": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" }
+}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const apiKey = ""; // Your API Key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API request failed`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                const cleanedString = result.candidates[0].content.parts[0].text.replace(/^```json\s*|```\s*$/g, '');
+                return JSON.parse(cleanedString);
+            } else {
+                throw new Error("Invalid response from API.");
+            }
+        }
+
+        async function getFollowUpSuggestions(originalText, sourceLang, targetLang) {
+            const prompt = `
+[TASK]
+Based on the user's original text, predict three logical, different follow-up sentences.
+[INPUT]
+- Original Text: "${originalText}"
+- Source Language: ${sourceLang}
+- Target Language: ${targetLang}
+[INSTRUCTIONS]
+Respond ONLY with a JSON object containing a "predictedSentences" array.
+[EXAMPLE]
+- Original Text: "メニューを見せてください。"
+- Expected JSON Output:
+{
   "predictedSentences": [
     { "target": "I'll have this, please.", "source": "これをお願いします。" },
     { "target": "Do you have any recommendations?", "source": "何かおすすめはありますか？" },
     { "target": "The check, please.", "source": "お会計をお願いします。" }
   ]
-}
-
-[OUTPUT FORMAT]
-Respond ONLY with the valid JSON object based on the schema.
-`;
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: "application/json" }
-            };
+}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
             const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API request failed`);
             const result = await response.json();
             if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                return JSON.parse(result.candidates[0].content.parts[0].text);
+                const cleanedString = result.candidates[0].content.parts[0].text.replace(/^```json\s*|```\s*$/g, '');
+                return JSON.parse(cleanedString);
+            } else {
+                throw new Error("Invalid response from API.");
+            }
+        }
+        
+        async function getExampleSentences(keyWord, sourceLang, targetLang) {
+             const prompt = `
+[TASK]
+Create three diverse example sentences using a given keyword.
+[INPUT]
+- Key Word: "${keyWord}"
+- Source Language: ${sourceLang}
+- Target Language: ${targetLang}
+[INSTRUCTIONS]
+1.  Generate three distinct example sentences in the **target language** that use the key word.
+2.  For each example, provide its meaning in the **source language**.
+3.  Respond ONLY with a JSON object containing an "exampleSentences" array.
+[EXAMPLE]
+- Key Word: "menu"
+- Expected JSON Output:
+{
+  "exampleSentences": [
+    { "target": "The restaurant is famous for its extensive menu.", "source": "そのレストランは豊富なメニューで有名です。" },
+    { "target": "Could we see the dessert menu?", "source": "デザートのメニューを見せてもらえますか？" },
+    { "target": "The daily specials are not on the main menu.", "source": "日替わりスペシャルはメインメニューには載っていません。" }
+  ]
+}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const apiKey = ""; // Your API Key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API request failed`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                const cleanedString = result.candidates[0].content.parts[0].text.replace(/^```json\s*|```\s*$/g, '');
+                return JSON.parse(cleanedString);
             } else {
                 throw new Error("Invalid response from API.");
             }
         }
 
         // --- DOM Manipulation ---
-        function displayResults(data) {
+        function displayResults(data, originalText) {
             clearResults();
             if (data.detectedSourceLanguage) {
                 const option = Array.from(sourceLangSelect.options).find(opt => opt.value.toLowerCase() === data.detectedSourceLanguage.toLowerCase());
@@ -221,40 +283,21 @@ Respond ONLY with the valid JSON object based on the schema.
             const results = [];
             const recommendedType = data.recommendedNuance || 'standard';
 
-            // Define colors for each nuance
             const colorMap = {
                 standard: { highlightBgColor: '#1B1B1D' }, // Black
                 casual:   { highlightBgColor: '#FF6F61' }, // Coral Pink
                 polite:   { highlightBgColor: '#1e3a8a' }  // Navy
             };
 
-            // Build the array in the fixed order: Casual, Standard, Polite
-            if (data.casualTranslation) {
-                results.push({ 
-                    type: 'casual', 
-                    title: 'Casual', 
-                    data: data.casualTranslation, 
-                    colors: colorMap.casual
-                });
-            }
-            if (data.standardTranslation) {
-                results.push({ 
-                    type: 'standard', 
-                    title: 'Standard', 
-                    data: data.standardTranslation, 
-                    colors: colorMap.standard
-                });
-            }
-            if (data.politeTranslation) {
-                results.push({ 
-                    type: 'polite', 
-                    title: 'Polite', 
-                    data: data.politeTranslation, 
-                    colors: colorMap.polite
-                });
-            }
+            if (data.casualTranslation) results.push({ type: 'casual', title: 'Casual', data: data.casualTranslation, colors: colorMap.casual });
+            if (data.standardTranslation) results.push({ type: 'standard', title: 'Standard', data: data.standardTranslation, colors: colorMap.standard });
+            if (data.politeTranslation) results.push({ type: 'polite', title: 'Polite', data: data.politeTranslation, colors: colorMap.polite });
 
-            // Create the tab UI
+            createTabsUI(results, recommendedType);
+            createOnDemandActions(originalText);
+        }
+
+        function createTabsUI(results, recommendedType) {
             const tabContainer = document.createElement('div');
             const tabNav = document.createElement('div');
             tabNav.className = 'flex bg-gray-100 rounded-lg p-1 space-x-1';
@@ -262,32 +305,24 @@ Respond ONLY with the valid JSON object based on the schema.
             tabContentContainer.className = 'mt-4';
 
             results.forEach(result => {
-                // Create Tab Button
                 const tabButton = document.createElement('button');
                 tabButton.dataset.tab = result.type;
                 tabButton.className = 'w-full py-2 px-4 rounded-md font-bold transition-colors text-sm flex items-center justify-center gap-2';
-
                 if (result.type === recommendedType) {
                     tabButton.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"></path></svg> ${result.title}`;
                 } else {
                     tabButton.textContent = result.title;
                 }
-
-                // Create Tab Content Panel
                 const contentPanel = document.createElement('div');
                 contentPanel.id = `content-${result.type}`;
                 contentPanel.className = 'hidden';
                 createResultCardContent(contentPanel, result.data, result.colors);
-
-                // Set active tab
                 if (result.type === recommendedType) {
                     tabButton.classList.add('bg-white', 'text-gray-900', 'shadow');
-                    tabButton.classList.remove('text-gray-500');
                     contentPanel.classList.remove('hidden');
                 } else {
                     tabButton.classList.add('text-gray-500', 'hover:bg-gray-200');
                 }
-
                 tabNav.appendChild(tabButton);
                 tabContentContainer.appendChild(contentPanel);
             });
@@ -301,38 +336,42 @@ Respond ONLY with the valid JSON object based on the schema.
                         btn.classList.add('text-gray-500', 'hover:bg-gray-200');
                     });
                     clickedButton.classList.add('bg-white', 'text-gray-900', 'shadow');
-                    clickedButton.classList.remove('text-gray-500', 'hover:bg-gray-200');
-                    tabContentContainer.querySelectorAll('div[id^="content-"]').forEach(panel => {
-                        panel.classList.add('hidden');
-                    });
+                    tabContentContainer.querySelectorAll('div[id^="content-"]').forEach(panel => panel.classList.add('hidden'));
                     document.getElementById(`content-${targetTab}`).classList.remove('hidden');
                 }
             });
 
             tabContainer.appendChild(tabNav);
             tabContainer.appendChild(tabContentContainer);
-            translationCards.appendChild(tabContainer);
-
-            if(data.predictedSentences?.length > 0) createPredictedSentencesCard(data.predictedSentences);
+            translationTabsContainer.appendChild(tabContainer);
         }
 
         function createResultCardContent(panel, translationData, colors) {
             const contentBox = document.createElement('div');
             contentBox.style.backgroundColor = colors.highlightBgColor;
             contentBox.className = 'p-3 rounded-lg flex justify-between items-center';
-            
             const contentTextElement = document.createElement('span');
             contentTextElement.className = 'text-white text-xl font-bold';
-            contentTextElement.textContent = translationData.target;
+            
+            translationData.target.split(/(\s+)/).forEach(word => {
+                if (word.trim() !== '') {
+                    const wordSpan = document.createElement('span');
+                    wordSpan.textContent = word;
+                    wordSpan.className = 'clickable-word';
+                    wordSpan.onclick = () => fetchAndDisplayExamples(word.replace(/[.,!?]/g, ''));
+                    contentTextElement.appendChild(wordSpan);
+                } else {
+                    contentTextElement.appendChild(document.createTextNode(word));
+                }
+            });
+            
             contentBox.appendChild(contentTextElement);
-
             const controlsWrapper = document.createElement('div');
             controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
             controlsWrapper.appendChild(createSpeakButton(translationData.target, 'text-white'));
             controlsWrapper.appendChild(createCopyButton(translationData.target, 'text-white'));
             contentBox.appendChild(controlsWrapper);
             panel.appendChild(contentBox);
-
             const nuanceContainer = document.createElement('div');
             nuanceContainer.className = 'mt-3 border-t border-gray-200 pt-3';
             const nuanceTextElement = document.createElement('p');
@@ -341,14 +380,87 @@ Respond ONLY with the valid JSON object based on the schema.
             nuanceContainer.appendChild(nuanceTextElement);
             panel.appendChild(nuanceContainer);
         }
-        
-        function createPredictedSentencesCard(sentences) {
-            const container = document.createElement('div');
-            container.className = 'bg-gray-50 p-4 rounded-lg border-2 border-gray-200';
+
+        async function fetchAndDisplayExamples(keyWord) {
+            const container = document.getElementById('key-word-container');
+            container.innerHTML = '<p class="text-center text-gray-500">例文を生成中...</p>';
+            try {
+                const result = await getExampleSentences(keyWord, sourceLangSelect.value, targetLangSelect.value);
+                if (result.exampleSentences) {
+                    createExamplesCard(result.exampleSentences, keyWord);
+                }
+            } catch (e) {
+                container.innerHTML = '<p class="text-center text-red-500">例文の生成に失敗しました。</p>';
+            }
+        }
+
+        function createExamplesCard(sentences, keyWord) {
+            const container = document.getElementById('key-word-container');
+            container.innerHTML = ''; // Clear loading text
+            const card = document.createElement('div');
+            card.className = 'bg-gray-50 p-4 rounded-lg border-2 border-gray-200';
+            const title = document.createElement('h3');
+            title.className = 'text-sm font-extrabold text-gray-400 mb-3 tracking-wider uppercase';
+            title.innerHTML = `キー単語の例文: <span class="text-gray-700">${keyWord}</span>`;
+            card.appendChild(title);
+            const list = document.createElement('div');
+            list.className = 'space-y-2';
+            sentences.forEach(sentenceObj => {
+                const item = document.createElement('div');
+                item.className = 'bg-white p-3 rounded-md border border-gray-200';
+                const targetText = document.createElement('p');
+                targetText.className = 'text-[#1B1B1D] font-bold';
+                
+                const regex = new RegExp(`(${keyWord})`, 'gi');
+                targetText.innerHTML = sentenceObj.target.replace(regex, `<span style="background-color: #1B1B1D; color: white; padding: 2px 4px; border-radius: 4px;">$1</span>`);
+
+                item.appendChild(targetText);
+                const sourceText = document.createElement('p');
+                sourceText.className = 'text-sm text-gray-500 mt-1';
+                sourceText.textContent = sentenceObj.source;
+                item.appendChild(sourceText);
+                list.appendChild(item);
+            });
+            card.appendChild(list);
+            container.appendChild(card);
+        }
+
+        function createOnDemandActions(originalText) {
+            const container = document.getElementById('next-actions-container');
+            container.innerHTML = ''; // Clear previous
+            const button = document.createElement('button');
+            button.innerHTML = `✨ 次のフレーズを提案`;
+            button.className = 'w-full bg-blue-100 text-blue-800 font-bold text-sm py-3 px-4 rounded-lg hover:bg-blue-200 transition';
+            const suggestionsDiv = document.createElement('div');
+            suggestionsDiv.className = 'hidden mt-4';
+            
+            button.onclick = async () => {
+                button.disabled = true;
+                button.textContent = '提案を生成中...';
+                try {
+                    const result = await getFollowUpSuggestions(originalText, sourceLangSelect.value, targetLangSelect.value);
+                    if (result.predictedSentences) {
+                        createPredictedSentencesContent(suggestionsDiv, result.predictedSentences);
+                        suggestionsDiv.classList.remove('hidden');
+                        button.classList.add('hidden'); // Hide button after showing suggestions
+                    }
+                } catch (e) {
+                    suggestionsDiv.innerHTML = '<p class="text-center text-red-500">提案の生成に失敗しました。</p>';
+                    suggestionsDiv.classList.remove('hidden');
+                }
+            };
+            container.appendChild(button);
+            container.appendChild(suggestionsDiv);
+        }
+
+        function createPredictedSentencesContent(container, sentences) {
+            container.innerHTML = ''; // Clear loading text
+            const card = document.createElement('div');
+            card.className = 'bg-gray-50 p-4 rounded-lg border-2 border-gray-200';
             const title = document.createElement('h3');
             title.className = 'text-sm font-extrabold text-gray-400 mb-3 tracking-wider uppercase';
             title.textContent = 'Next Actions';
-            container.appendChild(title);
+            card.appendChild(title);
             const list = document.createElement('div');
             list.className = 'space-y-2';
             sentences.forEach(sentenceObj => {
@@ -372,8 +484,8 @@ Respond ONLY with the valid JSON object based on the schema.
                 item.appendChild(controlsWrapper);
                 list.appendChild(item);
             });
-            container.appendChild(list);
-            translationCards.appendChild(container);
+            card.appendChild(list);
+            container.appendChild(card);
         }
 
         // --- Utility Functions ---
@@ -436,7 +548,9 @@ Respond ONLY with the valid JSON object based on the schema.
 
         function clearResults() {
             errorMessage.classList.add('hidden');
-            translationCards.innerHTML = '';
+            translationTabsContainer.innerHTML = '';
+            document.getElementById('key-word-container').innerHTML = '';
+            document.getElementById('next-actions-container').innerHTML = '';
         }
     </script>
 </body>
