@@ -173,7 +173,7 @@ Translate the user's text, provide stylistic variations, and recommend the best 
 - Target Language: ${targetLang}
 [INSTRUCTIONS]
 1.  **Analyze and Translate**: Provide three variations: Standard, Casual, and Polite.
-2.  **Back-Translate**: For each variation, provide a "source_nuance". This field MUST be a direct, literal back-translation of your translated text into the **source language**.
+2.  **Back-Translate**: For each variation, provide a "source_nuance". This field MUST be a direct, literal back-translation of your translated text, and it MUST be written in the same language as the original input (source language). Do NOT use any other language.
 3.  **Recommend Nuance**: Determine the best nuance ("standard", "casual", or "polite") and specify it in "recommendedNuance".
 4.  **Format Output**: Respond ONLY with a single, valid JSON object.
 [EXAMPLE OF PERFECT OUTPUT]
