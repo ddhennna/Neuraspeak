@@ -32,15 +32,6 @@
                 transform: rotate(360deg);
             }
         }
-        .clickable-word {
-            cursor: pointer;
-            display: inline-block;
-            transition: background-color 0.2s;
-            border-radius: 4px;
-        }
-        .clickable-word:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
     </style>
 </head>
 <body class="bg-white text-[#1B1B1D] flex items-center justify-center min-h-screen p-4">
@@ -96,9 +87,6 @@
 
                 <!-- Translation Tabs -->
                 <div id="translation-tabs-container"></div>
-                
-                <!-- Key Word Examples -->
-                <div id="key-word-container" class="space-y-4"></div>
 
                 <!-- On-demand Next Actions -->
                 <div id="next-actions-container" class="space-y-4"></div>
@@ -167,7 +155,7 @@
             
             const prompt = `
 [ROLE]
-You are a world-class, expert multilingual translator and linguist.
+You are a world-class, expert multilingual translator and linguist who is an expert on Gen Z slang.
 [TASK]
 Translate the user's text, provide stylistic variations, and recommend the best nuance.
 [INPUT]
@@ -175,28 +163,44 @@ Translate the user's text, provide stylistic variations, and recommend the best 
 - ${sourceLanguageInstruction}
 - Target Language: ${targetLang}
 [INSTRUCTIONS]
-1.  **Analyze and Translate**: Provide three variations: Standard, Casual, and Polite.
+1.  **Analyze and Translate**: Provide three variations: Standard, Casual (very informal, Gen Z slang), and Polite.
 2.  **Back-Translate**: For each variation, provide a "source_nuance" which is a direct back-translation.
 3.  **Recommend Nuance**: Determine the best nuance ("standard", "casual", or "polite") and specify it in "recommendedNuance".
 4.  **Format Output**: Respond ONLY with a single, valid JSON object.
-[EXAMPLE]
+[EXAMPLE OF PERFECT OUTPUT]
 - User Text: "メニューを見せてください。"
+- Source Language: "Japanese"
+- Target Language: "English"
 - Expected JSON Output:
 {
   "recommendedNuance": "standard",
   "standardTranslation": { "target": "Please show me the menu.", "source_nuance": "メニューを見せてください。" },
-  "casualTranslation": { "target": "Can I see the menu?", "source_nuance": "メニュー見てもいい？" },
+  "casualTranslation": { "target": "Lemme see the menu.", "source_nuance": "メニュー見せて。" },
   "politeTranslation": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" }
 }`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const payload = { 
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "recommendedNuance": { "type": "STRING" },
+                            "standardTranslation": { "type": "OBJECT", "properties": { "target": { "type": "STRING" }, "source_nuance": { "type": "STRING" } }, "required": ["target", "source_nuance"] },
+                            "casualTranslation": { "type": "OBJECT", "properties": { "target": { "type": "STRING" }, "source_nuance": { "type": "STRING" } }, "required": ["target", "source_nuance"] },
+                            "politeTranslation": { "type": "OBJECT", "properties": { "target": { "type": "STRING" }, "source_nuance": { "type": "STRING" } }, "required": ["target", "source_nuance"] }
+                        },
+                        "required": ["recommendedNuance", "standardTranslation", "casualTranslation", "politeTranslation"]
+                    }
+                }
+            };
             const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API request failed`);
             const result = await response.json();
             if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                const cleanedString = result.candidates[0].content.parts[0].text.replace(/^```json\s*|```\s*$/g, '');
-                return JSON.parse(cleanedString);
+                return JSON.parse(result.candidates[0].content.parts[0].text);
             } else {
                 throw new Error("Invalid response from API.");
             }
@@ -222,51 +226,34 @@ Respond ONLY with a JSON object containing a "predictedSentences" array.
     { "target": "The check, please.", "source": "お会計をお願いします。" }
   ]
 }`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const payload = { 
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "predictedSentences": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "target": { "type": "STRING" },
+                                        "source": { "type": "STRING" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
             const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API request failed`);
             const result = await response.json();
             if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                const cleanedString = result.candidates[0].content.parts[0].text.replace(/^```json\s*|```\s*$/g, '');
-                return JSON.parse(cleanedString);
-            } else {
-                throw new Error("Invalid response from API.");
-            }
-        }
-        
-        async function getExampleSentences(keyWord, sourceLang, targetLang) {
-             const prompt = `
-[TASK]
-Create three diverse example sentences using a given keyword.
-[INPUT]
-- Key Word: "${keyWord}"
-- Source Language: ${sourceLang}
-- Target Language: ${targetLang}
-[INSTRUCTIONS]
-1.  Generate three distinct example sentences in the **target language** that use the key word.
-2.  For each example, provide its meaning in the **source language**.
-3.  Respond ONLY with a JSON object containing an "exampleSentences" array.
-[EXAMPLE]
-- Key Word: "menu"
-- Expected JSON Output:
-{
-  "exampleSentences": [
-    { "target": "The restaurant is famous for its extensive menu.", "source": "そのレストランは豊富なメニューで有名です。" },
-    { "target": "Could we see the dessert menu?", "source": "デザートのメニューを見せてもらえますか？" },
-    { "target": "The daily specials are not on the main menu.", "source": "日替わりスペシャルはメインメニューには載っていません。" }
-  ]
-}`;
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`API request failed`);
-            const result = await response.json();
-            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                const cleanedString = result.candidates[0].content.parts[0].text.replace(/^```json\s*|```\s*$/g, '');
-                return JSON.parse(cleanedString);
+                return JSON.parse(result.candidates[0].content.parts[0].text);
             } else {
                 throw new Error("Invalid response from API.");
             }
@@ -352,19 +339,7 @@ Create three diverse example sentences using a given keyword.
             contentBox.className = 'p-3 rounded-lg flex justify-between items-center';
             const contentTextElement = document.createElement('span');
             contentTextElement.className = 'text-white text-xl font-bold';
-            
-            translationData.target.split(/(\s+)/).forEach(word => {
-                if (word.trim() !== '') {
-                    const wordSpan = document.createElement('span');
-                    wordSpan.textContent = word;
-                    wordSpan.className = 'clickable-word';
-                    wordSpan.onclick = () => fetchAndDisplayExamples(word.replace(/[.,!?]/g, ''));
-                    contentTextElement.appendChild(wordSpan);
-                } else {
-                    contentTextElement.appendChild(document.createTextNode(word));
-                }
-            });
-            
+            contentTextElement.textContent = translationData.target;
             contentBox.appendChild(contentTextElement);
             const controlsWrapper = document.createElement('div');
             controlsWrapper.className = 'flex items-center space-x-1 flex-shrink-0';
@@ -381,56 +356,12 @@ Create three diverse example sentences using a given keyword.
             panel.appendChild(nuanceContainer);
         }
 
-        async function fetchAndDisplayExamples(keyWord) {
-            const container = document.getElementById('key-word-container');
-            container.innerHTML = '<p class="text-center text-gray-500">例文を生成中...</p>';
-            try {
-                const result = await getExampleSentences(keyWord, sourceLangSelect.value, targetLangSelect.value);
-                if (result.exampleSentences) {
-                    createExamplesCard(result.exampleSentences, keyWord);
-                }
-            } catch (e) {
-                container.innerHTML = '<p class="text-center text-red-500">例文の生成に失敗しました。</p>';
-            }
-        }
-
-        function createExamplesCard(sentences, keyWord) {
-            const container = document.getElementById('key-word-container');
-            container.innerHTML = ''; // Clear loading text
-            const card = document.createElement('div');
-            card.className = 'bg-gray-50 p-4 rounded-lg border-2 border-gray-200';
-            const title = document.createElement('h3');
-            title.className = 'text-sm font-extrabold text-gray-400 mb-3 tracking-wider uppercase';
-            title.innerHTML = `キー単語の例文: <span class="text-gray-700">${keyWord}</span>`;
-            card.appendChild(title);
-            const list = document.createElement('div');
-            list.className = 'space-y-2';
-            sentences.forEach(sentenceObj => {
-                const item = document.createElement('div');
-                item.className = 'bg-white p-3 rounded-md border border-gray-200';
-                const targetText = document.createElement('p');
-                targetText.className = 'text-[#1B1B1D] font-bold';
-                
-                const regex = new RegExp(`(${keyWord})`, 'gi');
-                targetText.innerHTML = sentenceObj.target.replace(regex, `<span style="background-color: #1B1B1D; color: white; padding: 2px 4px; border-radius: 4px;">$1</span>`);
-
-                item.appendChild(targetText);
-                const sourceText = document.createElement('p');
-                sourceText.className = 'text-sm text-gray-500 mt-1';
-                sourceText.textContent = sentenceObj.source;
-                item.appendChild(sourceText);
-                list.appendChild(item);
-            });
-            card.appendChild(list);
-            container.appendChild(card);
-        }
-
         function createOnDemandActions(originalText) {
             const container = document.getElementById('next-actions-container');
             container.innerHTML = ''; // Clear previous
             const button = document.createElement('button');
             button.innerHTML = `次のフレーズを提案`;
-            button.className = 'w-full bg-blue-100 text-blue-800 font-bold text-sm py-3 px-4 rounded-lg hover:bg-blue-200 transition';
+            button.className = 'w-full bg-gray-100 text-gray-800 font-bold text-sm py-3 px-4 rounded-lg hover:bg-gray-200 transition';
             const suggestionsDiv = document.createElement('div');
             suggestionsDiv.className = 'hidden mt-4';
             
@@ -549,7 +480,6 @@ Create three diverse example sentences using a given keyword.
         function clearResults() {
             errorMessage.classList.add('hidden');
             translationTabsContainer.innerHTML = '';
-            document.getElementById('key-word-container').innerHTML = '';
             document.getElementById('next-actions-container').innerHTML = '';
         }
     </script>
