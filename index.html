@@ -156,7 +156,7 @@
 You are a world-class, expert multilingual translator and linguist. Your accuracy is crucial.
 
 [TASK]
-Your primary task is to translate the user's text, provide stylistic variations, recommend the best nuance, and predict logical follow-up phrases. You must strictly follow all instructions and output formats.
+Your primary task is to translate the user's text, provide stylistic variations, recommend the best nuance, and predict logical follow-up phrases. You must strictly follow all instructions and output only the valid JSON.
 
 [INPUT]
 - User Text: "${text}"
@@ -164,10 +164,10 @@ Your primary task is to translate the user's text, provide stylistic variations,
 - Target Language: ${targetLang}
 
 [INSTRUCTIONS]
-1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: Standard, Casual, and Polite.
-2.  **Back-Translate for Nuance**: For each of the three translation variations, create a "source_nuance". This field MUST be a direct, literal back-translation of your translated text into the original source language. It is NOT an explanation.
+1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: Standard, Casual, Polite.
+2.  **Back-Translate for Nuance**: For each of the three translation variations, create a "source_nuance". This field MUST be a direct, literal back-translation of your translated text **and MUST be written in the original source language (the same language as the user's input text), NOT the target language or English, regardless of the target language.**
 3.  **Recommend Best Nuance**: Based on the user's text, determine the most appropriate nuance. Add a field "recommendedNuance" to the JSON root. Its value MUST be one of: "standard", "casual", or "polite".
-4.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide the sentence in the target language and its meaning in the source language.
+4.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide both the target and the source version.
 5.  **Format Output**: Your final output must be a single, valid JSON object and nothing else.
 
 [EXAMPLE OF PERFECT OUTPUT]
@@ -182,7 +182,7 @@ Your primary task is to translate the user's text, provide stylistic variations,
   "politeTranslation": { "target": "Could you please bring me the menu?", "source_nuance": "メニューを持ってきていただけますか？" },
   "predictedSentences": [
     { "target": "I'll have this, please.", "source": "これをお願いします。" },
-    { "target": "Do you have any recommendations?", "source": "何かおすすめはありますか？" },
+    { "target": "Do you have a Japanese menu?", "source": "日本語のメニューはありますか？" },
     { "target": "The check, please.", "source": "お会計をお願いします。" }
   ]
 }
