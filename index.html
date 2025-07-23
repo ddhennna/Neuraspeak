@@ -228,20 +228,21 @@ Respond ONLY with the valid JSON object based on the schema.
                 polite:   { highlightBgColor: '#1e3a8a' }  // Navy
             };
 
-            if (data.standardTranslation) {
-                results.push({ 
-                    type: 'standard', 
-                    title: 'Standard', 
-                    data: data.standardTranslation, 
-                    colors: colorMap.standard
-                });
-            }
+            // Build the array in the fixed order: Casual, Standard, Polite
             if (data.casualTranslation) {
                 results.push({ 
                     type: 'casual', 
                     title: 'Casual', 
                     data: data.casualTranslation, 
                     colors: colorMap.casual
+                });
+            }
+            if (data.standardTranslation) {
+                results.push({ 
+                    type: 'standard', 
+                    title: 'Standard', 
+                    data: data.standardTranslation, 
+                    colors: colorMap.standard
                 });
             }
             if (data.politeTranslation) {
@@ -252,14 +253,6 @@ Respond ONLY with the valid JSON object based on the schema.
                     colors: colorMap.polite
                 });
             }
-
-            // Sort to bring the recommended one to the top
-            results.sort((a, b) => {
-                if (a.type === recommendedType) return -1;
-                if (b.type === recommendedType) return 1;
-                const order = { standard: 1, casual: 2, polite: 3 };
-                return order[a.type] - order[b.type];
-            });
 
             // Create the tab UI
             const tabContainer = document.createElement('div');
