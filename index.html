@@ -684,14 +684,15 @@ Respond ONLY with the valid JSON object based on the schema.
             const contentTextElement = document.createElement('div');
             contentTextElement.className = 'text-white text-xl font-bold flex-grow';
             
-            const words = translationData.target.split(/\b/);
+            // Enhanced word detection for multiple languages
+            const words = translationData.target.split(/(\s+|[^\w\s])/);
             words.forEach(word => {
-                if (word.trim() && /^[a-zA-Z0-9'-]+$/.test(word)) {
+                if (word.trim() && isClickableWord(word.trim())) {
                     const wordSpan = document.createElement('span');
                     wordSpan.className = 'clickable-word';
                     wordSpan.textContent = word;
-                    if (isWordInVocabulary(word)) wordSpan.classList.add('saved-word');
-                    wordSpan.addEventListener('click', () => showWordDefinition(word));
+                    if (isWordInVocabulary(word.trim())) wordSpan.classList.add('saved-word');
+                    wordSpan.addEventListener('click', () => showWordDefinition(word.trim()));
                     contentTextElement.appendChild(wordSpan);
                 } else {
                     contentTextElement.appendChild(document.createTextNode(word));
@@ -734,14 +735,15 @@ Respond ONLY with the valid JSON object based on the schema.
                 const targetText = document.createElement('p');
                 targetText.className = 'text-[#1B1B1D] font-bold';
                 
-                const words = sentenceObj.target.split(/\b/);
+                // Enhanced word detection for multiple languages
+                const words = sentenceObj.target.split(/(\s+|[^\w\s])/);
                 words.forEach(word => {
-                    if (word.trim() && /^[a-zA-Z0-9'-]+$/.test(word)) {
+                    if (word.trim() && isClickableWord(word.trim())) {
                         const wordSpan = document.createElement('span');
                         wordSpan.className = 'clickable-word';
                         wordSpan.textContent = word;
-                        if (isWordInVocabulary(word)) wordSpan.classList.add('saved-word');
-                        wordSpan.addEventListener('click', () => showWordDefinition(word));
+                        if (isWordInVocabulary(word.trim())) wordSpan.classList.add('saved-word');
+                        wordSpan.addEventListener('click', () => showWordDefinition(word.trim()));
                         targetText.appendChild(wordSpan);
                     } else {
                         targetText.appendChild(document.createTextNode(word));
@@ -763,6 +765,21 @@ Respond ONLY with the valid JSON object based on the schema.
             });
             container.appendChild(list);
             translationCards.appendChild(container);
+        }
+
+        // Enhanced word detection for multiple languages
+        function isClickableWord(word) {
+            // Remove punctuation for checking
+            const cleanWord = word.replace(/[^\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uAC00-\uD7AF]/g, '');
+            if (!cleanWord) return false;
+            
+            // Check for different language patterns
+            return (
+                /^[a-zA-Z]{2,}$/.test(cleanWord) || // English words (2+ letters)
+                /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]{1,}/.test(cleanWord) || // Japanese (hiragana, katakana, kanji)
+                /[\uAC00-\uD7AF]{1,}/.test(cleanWord) || // Korean (Hangul)
+                /^[a-zA-ZÀ-ÿ]{2,}$/.test(cleanWord) // French, German, Spanish with accents
+            );
         }
 
         // --- Word Definition Functions (UPDATED) ---
@@ -803,14 +820,14 @@ Respond ONLY with the valid JSON object based on the schema.
         }
         
         async function getComprehensiveDefinition(word, wordLanguage, definitionLanguage) {
-            // If the desired definition is not in English, use AI directly.
-            if (definitionLanguage !== 'English') {
+            // For non-English words or non-English definitions, use AI directly
+            if (wordLanguage !== 'English' || definitionLanguage !== 'English') {
                 return getAiDefinition(word, wordLanguage, definitionLanguage);
             }
 
-            // Fallback Chain for English -> English definitions
+            // English word with English definition - try dictionary APIs first
             try {
-                // 1. Try standard dictionary
+                // 1. Try standard dictionary for English words
                 const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
                 if (!response.ok) throw new Error("Not in standard dictionary.");
                 const data = await response.json();
@@ -818,7 +835,7 @@ Respond ONLY with the valid JSON object based on the schema.
                 return transformDictionaryApiData(data[0], aiData);
             } catch (error1) {
                 try {
-                    // 2. Try slang dictionary
+                    // 2. Try slang dictionary for English words
                     const response = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(word.toLowerCase())}`);
                     if (!response.ok) throw new Error("Urban Dictionary API failed.");
                     const data = await response.json();
@@ -858,10 +875,10 @@ Respond ONLY with the valid JSON object based on the schema.
         async function getAiDefinition(word, wordLanguage, definitionLanguage) {
             const prompt = `
 [ROLE]
-You are a helpful multilingual dictionary assistant. Your task is to provide a detailed, structured definition for a given word.
+You are a multilingual dictionary expert specializing in ${wordLanguage} language. You provide comprehensive, accurate definitions and linguistic analysis for words in any language.
 
 [TASK]
-Analyze the user's word and provide a comprehensive definition in the specified definition language. Include pronunciation, part of speech, alternative expressions (like slang), and an example sentence.
+Analyze the given word and provide a detailed definition with pronunciation, usage examples, and alternatives. Handle all languages including English, Japanese, Korean, French, German, Spanish, Chinese, etc.
 
 [INPUT]
 - Word to Define: "${word}"
@@ -869,34 +886,45 @@ Analyze the user's word and provide a comprehensive definition in the specified 
 - Language for the Definition: "${definitionLanguage}"
 
 [INSTRUCTIONS]
-1.  **Definition**: Provide a clear and concise definition of the word. This definition MUST be written in the "${definitionLanguage}".
-2.  **Pronunciation**: Provide the phonetic transcription for the word.
-3.  **Part of Speech**: Identify the part of speech (e.g., noun, verb, adjective). This MUST be written in the "${definitionLanguage}".
-4.  **Alternatives**: List up to two common alternative or slang expressions related to the word. For each alternative, provide the expression itself and a brief explanation of its nuance. The explanation MUST be in the "${definitionLanguage}". If no alternatives are common, return an empty array. For "want to", you must include "wanna".
-5.  **Example**: Provide one clear example sentence using the word. The sentence should be in the "${wordLanguage}", and you MUST also provide its translation in the "${definitionLanguage}".
-6.  **Format**: Your final output must be a single, valid JSON object and nothing else. Do not include any text before or after the JSON object.
+1.  **Definition**: Provide a clear, accurate definition of the word in "${definitionLanguage}". For non-English words, include cultural context if relevant.
+2.  **Pronunciation**: Provide phonetic transcription appropriate for the word's language:
+    - English: IPA notation (e.g., /ˈhæpi/)
+    - Korean: Romanization (e.g., 안녕하세요 → annyeonghaseyo)
+    - Japanese: Romaji (e.g., こんにちは → konnichiwa)
+    - French: IPA or simplified phonetics (e.g., /bɔ̃ʒuʁ/)
+    - German: IPA or simplified phonetics (e.g., /ˈɡuːtən ˈtaːk/)
+    - Spanish: Simplified phonetics (e.g., OH-lah)
+    - Chinese: Pinyin with tones (e.g., nǐ hǎo)
+3.  **Part of Speech**: Identify the grammatical category in "${definitionLanguage}".
+4.  **Alternatives**: List 1-3 synonyms, related expressions, or alternative forms in the same language as the word. Include brief explanations of nuance differences in "${definitionLanguage}".
+5.  **Example**: Provide a natural example sentence using the word in its original language, with translation to "${definitionLanguage}".
+6.  **Cultural Notes**: For culturally specific terms, add brief context in "${definitionLanguage}".
 
-[EXAMPLE OF PERFECT JSON OUTPUT]
-- Word to Define: "happy"
-- Language of the Word: "English"
-- Language for the Definition: "Japanese"
-- Expected JSON Output:
+[LANGUAGE-SPECIFIC GUIDELINES]
+- **Korean**: Include formal/informal levels when relevant. For Hangul words, provide romanization.
+- **Japanese**: Distinguish between hiragana, katakana, and kanji usage. Include reading (furigana concept).
+- **French**: Include gender for nouns. Note liaison or pronunciation changes.
+- **German**: Include article for nouns (der/die/das). Note separable prefixes for verbs.
+- **Spanish**: Include gender for nouns. Note regional variations if significant.
+- **Chinese**: Specify Traditional vs Simplified if relevant. Include tone information.
+
+[EXAMPLE OUTPUT - Korean Word]
 {
-  "pronunciation": "/ˈhæpi/",
-  "partOfSpeech": "形容詞",
-  "definition": "幸福や喜びを感じている、または示している状態。",
+  "pronunciation": "annyeonghaseyo (안녕하세요)",
+  "partOfSpeech": "인사말 (greeting)",
+  "definition": "韓国語の丁寧な挨拶表現。「こんにちは」「おはようございます」「こんばんは」など、時間を問わず使える万能的な挨拶。",
   "alternatives": [
-    { "expression": "glad", "nuance": "特定の出来事に対する喜びを表す、より一時的な感情。" },
-    { "expression": "pleased", "nuance": "満足感や喜びを表す、よりフォーマルな表現。" }
+    { "expression": "안녕 (annyeong)", "nuance": "友達や年下に使うカジュアルな挨拶" },
+    { "expression": "안녕하십니까 (annyeonghasimnikka)", "nuance": "非常に丁寧で格式ばった挨拶、ビジネスや初対面で使用" }
   ],
   "example": {
-    "source": "She looks very happy.",
-    "target": "彼女はとても幸せそうです。"
+    "source": "안녕하세요, 처음 뵙겠습니다.",
+    "target": "こんにちは、初めてお目にかかります。"
   }
 }
 
 [OUTPUT FORMAT]
-Respond ONLY with the valid JSON object based on the schema.
+Respond ONLY with a valid JSON object. Do not include any text before or after the JSON.
 `;
             const payload = {
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
