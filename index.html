@@ -96,6 +96,22 @@
         .vocabulary-drawer.visible {
             transform: translateY(0);
         }
+        
+        /* 音声入力ボタンのアニメーション */
+        .recording {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
     </style>
 </head>
 <body class="bg-white text-[#1B1B1D] flex items-center justify-center min-h-screen p-4">
@@ -131,7 +147,16 @@
                     </select>
                 </div>
                 
-                <textarea id="text-input" rows="4" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#1B1B1D]/50 focus:border-[#1B1B1D] outline-none" placeholder="翻訳したいテキストを入力してください..."></textarea>
+                <div class="relative">
+                    <textarea id="text-input" rows="4" class="w-full p-3 pr-12 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#1B1B1D]/50 focus:border-[#1B1B1D] outline-none" placeholder="翻訳したいテキストを入力してください..."></textarea>
+                    <button id="mic-btn" class="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1B1B1D]">
+                        <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                        </svg>
+                    </button>
+                </div>
 
                 <button id="translate-btn" class="w-full bg-[#1B1B1D] text-white font-extrabold text-lg py-3 px-4 rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-[#1B1B1D]">
                     Translate
@@ -249,6 +274,8 @@
         const loader = document.getElementById('loader-container');
         const errorMessage = document.getElementById('error-message');
         const translationCards = document.getElementById('translation-cards');
+        const micBtn = document.getElementById('mic-btn');
+        const micIcon = document.getElementById('mic-icon');
         
         // Vocabulary and word definition elements
         const wordModal = document.getElementById('word-modal');
@@ -270,6 +297,46 @@
         let vocabularyItems = JSON.parse(localStorage.getItem('vocabulary') || '[]');
         let currentWord = null;
 
+        // --- Speech Recognition ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = getLangCode(sourceLangSelect.value);
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                micBtn.classList.add('recording');
+                micIcon.classList.add('text-red-500');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                textInput.value = transcript;
+            };
+
+            recognition.onspeechend = () => {
+                recognition.stop();
+            };
+            
+            recognition.onend = () => {
+                micBtn.classList.remove('recording');
+                micIcon.classList.remove('text-red-500');
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                micBtn.classList.remove('recording');
+                micIcon.classList.remove('text-red-500');
+            };
+        } else {
+            console.log("Speech Recognition not supported");
+            micBtn.style.display = 'none';
+        }
+
         // --- TTS Voice Loading ---
         let voices = [];
         function populateVoiceList() {
@@ -289,6 +356,13 @@
                 handleTranslation();
             }
         });
+
+        if (micBtn) {
+            micBtn.addEventListener('click', () => {
+                recognition.lang = getLangCode(sourceLangSelect.value);
+                recognition.start();
+            });
+        }
         
         closeModalBtn.addEventListener('click', closeWordModal);
         modalOverlay.addEventListener('click', closeWordModal);
