@@ -1,0 +1,1 @@
+Request to include handling of slang words like "wanna" that are not found in standard dictionaries. Please consider integrating the Urban Dictionary API and adding AI-generated fallback definitions for unknown words to prevent "Failed to load definition" errors.
