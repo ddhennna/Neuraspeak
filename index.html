@@ -643,13 +643,34 @@ Respond ONLY with the valid JSON object based on the schema.
         }
         
         async function fetchWordDefinition(word, sourceLanguage = 'English') {
+            // Normalize language names to handle variations
+            const normalizedLanguage = normalizeLanguageName(sourceLanguage);
+            
             // Determine which dictionary API to use based on source language
-            if (sourceLanguage === 'Japanese') {
+            if (normalizedLanguage === 'Japanese') {
                 return await fetchJapaneseDefinition(word);
             } else {
                 // Default to English dictionary for all other languages
                 return await fetchEnglishDefinition(word);
             }
+        }
+        
+        function normalizeLanguageName(language) {
+            if (!language) return 'English';
+            
+            const lang = language.toLowerCase().trim();
+            
+            // Handle various forms of language names
+            if (lang.includes('japan') || lang === 'ja') return 'Japanese';
+            if (lang.includes('english') || lang === 'en') return 'English';
+            if (lang.includes('spanish') || lang === 'es') return 'Spanish';
+            if (lang.includes('french') || lang === 'fr') return 'French';
+            if (lang.includes('german') || lang === 'de') return 'German';
+            if (lang.includes('chinese') || lang === 'zh') return 'Chinese';
+            if (lang.includes('korean') || lang === 'ko') return 'Korean';
+            
+            // Return as-is for exact matches
+            return language;
         }
         
         async function fetchEnglishDefinition(word) {
@@ -675,38 +696,47 @@ Respond ONLY with the valid JSON object based on the schema.
                 
                 if (!data.data || data.data.length === 0) {
                     // Fallback to English if no Japanese definition found
+                    console.log("No Japanese definition found, falling back to English");
                     return await fetchEnglishDefinition(word);
                 }
                 
                 // Convert Jisho API response to a format similar to English dictionary API
                 const entry = data.data[0];
+                const japanese = entry.japanese[0] || {};
+                
                 return {
                     word: word,
-                    phonetic: entry.japanese[0]?.reading || '',
-                    meanings: entry.senses.map(sense => ({
+                    phonetic: japanese.reading || japanese.word || '',
+                    meanings: entry.senses.slice(0, 3).map(sense => ({
                         partOfSpeech: sense.parts_of_speech.join(', ') || 'unknown',
-                        definitions: sense.english_definitions.map(def => ({
+                        definitions: sense.english_definitions.slice(0, 3).map(def => ({
                             definition: def,
-                            example: sense.examples?.join('; ') || ''
+                            example: sense.tags?.join('; ') || ''
                         }))
                     })),
-                    sourceLanguage: 'Japanese'
+                    sourceLanguage: 'Japanese',
+                    originalWord: japanese.word || word
                 };
             } catch (error) {
-                console.log("Japanese definition failed, falling back to English:", error);
+                console.log("Japanese definition failed, falling back to English:", error.message);
                 // Fallback to English definition
                 return await fetchEnglishDefinition(word);
             }
         }
         
         function updateWordModal(definition) {
-            // Display phonetics
+            // Display phonetics/reading
             if (definition.phonetic) {
                 wordPronunciation.textContent = definition.phonetic;
             } else if (definition.phonetics && definition.phonetics.length > 0 && definition.phonetics[0].text) {
                 wordPronunciation.textContent = definition.phonetics[0].text;
             } else {
                 wordPronunciation.textContent = "Pronunciation not available";
+            }
+            
+            // For Japanese words, show both original and reading if available
+            if (definition.sourceLanguage === 'Japanese' && definition.originalWord && definition.originalWord !== definition.word) {
+                wordPronunciation.textContent = `${definition.originalWord} (${definition.phonetic || 'reading not available'})`;
             }
             
             // Display definitions
@@ -738,6 +768,14 @@ Respond ONLY with the valid JSON object based on the schema.
                     
                     wordDefinition.appendChild(definitionsList);
                 });
+                
+                // Add source language indicator
+                if (definition.sourceLanguage && definition.sourceLanguage !== 'English') {
+                    const sourceIndicator = document.createElement('p');
+                    sourceIndicator.className = "text-xs text-blue-600 mt-3 italic";
+                    sourceIndicator.textContent = `Definition from ${definition.sourceLanguage} dictionary`;
+                    wordDefinition.appendChild(sourceIndicator);
+                }
             } else {
                 wordDefinition.textContent = "No definition found";
             }
