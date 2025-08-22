@@ -1206,7 +1206,9 @@ Respond ONLY with the valid JSON object based on the schema.
             const item = quizState.items[quizState.currentIndex];
             const sentence = item.definition.example.source;
             const wordToGuess = item.word;
-            const blankedSentence = sentence.replace(new RegExp(`\\b${wordToGuess}\\b`, 'gi'), '_______');
+            
+            const safeWordToGuess = escapeRegExp(wordToGuess);
+            const blankedSentence = sentence.replace(new RegExp(`\\b${safeWordToGuess}\\b`, 'gi'), '_______');
 
             learningModeContent.innerHTML = `
                 <div class="space-y-4">
@@ -1220,7 +1222,7 @@ Respond ONLY with the valid JSON object based on the schema.
                     <div class="text-center text-xl font-bold my-4 p-4 bg-gray-50 rounded-lg">
                         ${blankedSentence}
                     </div>
-                    <div id="quiz-feedback" class="h-6 text-center"></div>
+                    <div id="quiz-feedback" class="h-10 text-center text-sm"></div>
                     <div class="flex gap-2">
                         <input type="text" id="quiz-input" class="w-full p-3 bg-white border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#1B1B1D]/50 focus:border-[#1B1B1D] outline-none" placeholder="単語を入力...">
                         <button id="quiz-submit" class="bg-[#1B1B1D] text-white font-bold py-3 px-5 rounded-lg hover:bg-opacity-90">回答</button>
@@ -1234,16 +1236,82 @@ Respond ONLY with the valid JSON object based on the schema.
             submitBtn.addEventListener('click', handleQuizSubmit);
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
+                    e.preventDefault();
                     handleQuizSubmit();
                 }
             });
             input.focus();
         }
 
-        function handleQuizSubmit() {
+        async function checkAnswerWithAi(userAnswer, correctAnswer, sentence) {
+            const blankedSentence = sentence.replace(new RegExp(`\\b${escapeRegExp(correctAnswer)}\\b`, 'gi'), '_______');
+            const prompt = `
+[ROLE]
+You are a linguistic evaluator. Your task is to determine if a user's answer is a valid synonym for the correct word in a specific sentence context.
+
+[TASK]
+Analyze the user's answer and determine if it can semantically replace the correct word in the provided sentence without changing the core meaning.
+
+[INPUT]
+- Sentence with a blank: "${blankedSentence}"
+- Correct Answer: "${correctAnswer}"
+- User's Answer: "${userAnswer}"
+- Language: "English"
+
+[INSTRUCTIONS]
+1.  **Analyze Synonymy**: Determine if the "User's Answer" is a suitable synonym for the "Correct Answer" in the context of the sentence.
+2.  **Strictness**: Be reasonably strict. The synonym should fit naturally. For example, if the correct answer is "car", "automobile" is a good synonym, but "vehicle" might be too broad.
+3.  **Format Output**: Your final output must be a single, valid JSON object with a single key "isValid" which is a boolean value (true or false).
+
+[EXAMPLE 1]
+- Sentence with a blank: "It was a _______ day."
+- Correct Answer: "wonderful"
+- User's Answer: "amazing"
+- Expected JSON Output:
+{ "isValid": true }
+
+[EXAMPLE 2]
+- Sentence with a blank: "I need to _______ my homework."
+- Correct Answer: "do"
+- User's Answer: "make"
+- Expected JSON Output:
+{ "isValid": false }
+
+[OUTPUT FORMAT]
+Respond ONLY with the valid JSON object: {"isValid": boolean}
+`;
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            };
+            const apiKey = ""; // Your API Key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) return false;
+                const result = await response.json();
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    const parsed = JSON.parse(result.candidates[0].content.parts[0].text);
+                    return parsed.isValid === true;
+                }
+                return false;
+            } catch (error) {
+                console.error("AI synonym check failed:", error);
+                return false;
+            }
+        }
+
+        async function handleQuizSubmit() {
             const input = document.getElementById('quiz-input');
             const userAnswer = input.value.trim();
-            const correctAnswer = quizState.items[quizState.currentIndex].word;
+            const currentItem = quizState.items[quizState.currentIndex];
+            const correctAnswer = currentItem.word;
+            const sentence = currentItem.definition.example.source;
             const feedbackEl = document.getElementById('quiz-feedback');
             const submitBtn = document.getElementById('quiz-submit');
 
@@ -1251,24 +1319,38 @@ Respond ONLY with the valid JSON object based on the schema.
             
             submitBtn.disabled = true;
             input.disabled = true;
+            feedbackEl.innerHTML = '<div class="loader mx-auto" style="width:24px; height:24px; border-width: 3px;"></div>';
+
 
             if (userAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
                 quizState.score++;
                 feedbackEl.textContent = '正解！ 🎉';
-                feedbackEl.className = 'h-6 text-center font-bold text-green-500';
+                feedbackEl.className = 'h-10 text-center font-bold text-green-500 flex items-center justify-center';
                 input.classList.add('border-green-500', 'ring-green-500/50');
                 setTimeout(() => {
                     quizState.currentIndex++;
                     displayQuizQuestion();
                 }, 1500);
             } else {
-                feedbackEl.innerHTML = `不正解... 正解は: <span class="font-bold">${correctAnswer}</span>`;
-                feedbackEl.className = 'h-6 text-center font-bold text-red-500';
-                input.classList.add('border-red-500', 'ring-red-500/50');
-                 setTimeout(() => {
-                    quizState.currentIndex++;
-                    displayQuizQuestion();
-                }, 2500);
+                const isSynonym = await checkAnswerWithAi(userAnswer, correctAnswer, sentence);
+                if (isSynonym) {
+                    quizState.score++;
+                    feedbackEl.innerHTML = `答えは <span class="font-bold">"${correctAnswer}"</span> ですが、その単語でも通用します！ 👍`;
+                    feedbackEl.className = 'h-10 text-center font-bold text-yellow-500 flex items-center justify-center';
+                    input.classList.add('border-yellow-500', 'ring-yellow-500/50');
+                     setTimeout(() => {
+                        quizState.currentIndex++;
+                        displayQuizQuestion();
+                    }, 2500);
+                } else {
+                    feedbackEl.innerHTML = `不正解... 正解は: <span class="font-bold">${correctAnswer}</span>`;
+                    feedbackEl.className = 'h-10 text-center font-bold text-red-500 flex items-center justify-center';
+                    input.classList.add('border-red-500', 'ring-red-500/50');
+                     setTimeout(() => {
+                        quizState.currentIndex++;
+                        displayQuizQuestion();
+                    }, 2500);
+                }
             }
         }
         
@@ -1289,6 +1371,11 @@ Respond ONLY with the valid JSON object based on the schema.
         }
 
         // --- Utility Functions ---
+        // Function to escape special characters for regex
+        const escapeRegExp = (string) => {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        };
+
         function getLangCode(langName) {
             const langMap = {'English': 'en-US', 'Japanese': 'ja-JP', 'Spanish': 'es-ES', 'French': 'fr-FR', 'German': 'de-DE', 'Chinese': 'zh-CN', 'Korean': 'ko-KR'};
             return langMap[langName] || 'en-US';
@@ -1353,3 +1440,4 @@ Respond ONLY with the valid JSON object based on the schema.
     </script>
 </body>
 </html>
+
