@@ -33,7 +33,7 @@
             }
         }
 
-        /* Word highlighting styles */
+        /* 単語のハイライトスタイル */
         .clickable-word {
             position: relative;
             cursor: pointer;
@@ -52,7 +52,7 @@
             background-color: rgba(255, 255, 100, 0.3);
         }
 
-        /* Word modal styles */
+        /* 単語モーダルのスタイル */
         .word-modal {
             position: fixed;
             top: 50%;
@@ -73,7 +73,7 @@
             z-index: 40;
         }
         
-        /* Vocabulary drawer */
+        /* 単語帳ドロワー */
         .vocabulary-drawer {
             position: fixed;
             bottom: 0;
@@ -183,7 +183,7 @@
                     </svg>
                 </button>
             </div>
-            <div class="p-4">
+            <div class="p-4 max-h-[70vh] overflow-y-auto">
                 <div class="flex items-center mb-4 gap-2">
                     <div id="word-pronunciation" class="text-gray-600 flex-grow"></div>
                     <button id="play-pronunciation" class="p-1.5 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0">
@@ -195,6 +195,18 @@
                     </button>
                 </div>
                 <div id="word-definition" class="text-sm text-gray-700 space-y-2"></div>
+                
+                <!-- New Section for Alternatives -->
+                <div id="word-alternatives-container" class="mt-3 hidden">
+                    <h4 class="text-sm font-bold text-gray-500">別の表現 / ニュアンス</h4>
+                    <div id="word-alternatives" class="mt-1 text-sm text-gray-700 space-y-2"></div>
+                </div>
+                <!-- New Section for Examples -->
+                <div id="word-example-container" class="mt-3 hidden">
+                    <h4 class="text-sm font-bold text-gray-500">例文</h4>
+                    <div id="word-example" class="mt-1 text-sm text-gray-700 space-y-1"></div>
+                </div>
+
                 <div class="mt-4 pt-4 border-t border-gray-200">
                     <button id="save-word" class="w-full bg-[#1B1B1D] text-white font-bold py-2 rounded-md hover:bg-opacity-90">
                         Add to Vocabulary
@@ -278,7 +290,6 @@
             }
         });
         
-        // Word modal event listeners
         closeModalBtn.addEventListener('click', closeWordModal);
         modalOverlay.addEventListener('click', closeWordModal);
         saveWordBtn.addEventListener('click', saveWordToVocabulary);
@@ -288,19 +299,17 @@
             }
         });
         
-        // Vocabulary drawer event listeners
         vocabularyBtn.addEventListener('click', toggleVocabularyDrawer);
         closeVocabularyBtn.addEventListener('click', closeVocabularyDrawer);
         clearVocabularyBtn.addEventListener('click', clearVocabulary);
         
-        // Initialize vocabulary count
         updateVocabularyCount();
 
         // --- Main Translation Handler ---
         async function handleTranslation() {
             const text = textInput.value.trim();
             if (!text) {
-                showError("Please enter some text to translate.");
+                showError("翻訳するテキストを入力してください。");
                 return;
             }
             showLoader(true);
@@ -310,7 +319,7 @@
                 if (result) displayResults(result);
             } catch (error) {
                 console.error("Translation error:", error);
-                showError("Sorry, an error occurred while translating. Please try again.");
+                showError("翻訳中にエラーが発生しました。もう一度お試しください。");
             } finally {
                 showLoader(false);
             }
@@ -392,39 +401,16 @@ Respond ONLY with the valid JSON object based on the schema.
             const results = [];
             const recommendedType = data.recommendedNuance || 'standard';
 
-            // Define colors for each nuance
             const colorMap = {
                 standard: { highlightBgColor: '#1B1B1D' }, // Black
                 casual:   { highlightBgColor: '#FF6F61' }, // Coral Pink
                 polite:   { highlightBgColor: '#1e3a8a' }  // Navy
             };
 
-            if (data.standardTranslation) {
-                results.push({ 
-                    type: 'standard', 
-                    title: 'Standard', 
-                    data: data.standardTranslation, 
-                    colors: colorMap.standard
-                });
-            }
-            if (data.casualTranslation) {
-                results.push({ 
-                    type: 'casual', 
-                    title: 'Casual', 
-                    data: data.casualTranslation, 
-                    colors: colorMap.casual
-                });
-            }
-            if (data.politeTranslation) {
-                results.push({ 
-                    type: 'polite', 
-                    title: 'Polite', 
-                    data: data.politeTranslation, 
-                    colors: colorMap.polite
-                });
-            }
+            if (data.standardTranslation) results.push({ type: 'standard', title: 'Standard', data: data.standardTranslation, colors: colorMap.standard });
+            if (data.casualTranslation) results.push({ type: 'casual', title: 'Casual', data: data.casualTranslation, colors: colorMap.casual });
+            if (data.politeTranslation) results.push({ type: 'polite', title: 'Polite', data: data.politeTranslation, colors: colorMap.polite });
 
-            // Sort to bring the recommended one to the top
             results.sort((a, b) => {
                 if (a.type === recommendedType) return -1;
                 if (b.type === recommendedType) return 1;
@@ -432,7 +418,6 @@ Respond ONLY with the valid JSON object based on the schema.
                 return order[a.type] - order[b.type];
             });
 
-            // Create the tab UI
             const tabContainer = document.createElement('div');
             const tabNav = document.createElement('div');
             tabNav.className = 'flex bg-gray-100 rounded-lg p-1 space-x-1';
@@ -440,27 +425,19 @@ Respond ONLY with the valid JSON object based on the schema.
             tabContentContainer.className = 'mt-4';
 
             results.forEach(result => {
-                // Create Tab Button
                 const tabButton = document.createElement('button');
                 tabButton.dataset.tab = result.type;
                 tabButton.className = 'w-full py-2 px-4 rounded-md font-bold transition-colors text-sm flex items-center justify-center gap-2';
 
-                if (result.type === recommendedType) {
-                    tabButton.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"></path></svg> ${result.title}`;
-                } else {
-                    tabButton.textContent = result.title;
-                }
+                tabButton.innerHTML = result.type === recommendedType ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"></path></svg> ${result.title}` : result.title;
 
-                // Create Tab Content Panel
                 const contentPanel = document.createElement('div');
                 contentPanel.id = `content-${result.type}`;
                 contentPanel.className = 'hidden';
                 createResultCardContent(contentPanel, result.data, result.colors);
 
-                // Set active tab
                 if (result.type === recommendedType) {
                     tabButton.classList.add('bg-white', 'text-gray-900', 'shadow');
-                    tabButton.classList.remove('text-gray-500');
                     contentPanel.classList.remove('hidden');
                 } else {
                     tabButton.classList.add('text-gray-500', 'hover:bg-gray-200');
@@ -479,10 +456,7 @@ Respond ONLY with the valid JSON object based on the schema.
                         btn.classList.add('text-gray-500', 'hover:bg-gray-200');
                     });
                     clickedButton.classList.add('bg-white', 'text-gray-900', 'shadow');
-                    clickedButton.classList.remove('text-gray-500', 'hover:bg-gray-200');
-                    tabContentContainer.querySelectorAll('div[id^="content-"]').forEach(panel => {
-                        panel.classList.add('hidden');
-                    });
+                    tabContentContainer.querySelectorAll('div[id^="content-"]').forEach(panel => panel.classList.add('hidden'));
                     document.getElementById(`content-${targetTab}`).classList.remove('hidden');
                 }
             });
@@ -499,23 +473,16 @@ Respond ONLY with the valid JSON object based on the schema.
             contentBox.style.backgroundColor = colors.highlightBgColor;
             contentBox.className = 'p-3 rounded-lg flex justify-between items-center';
             
-            // Create a container for the text with clickable words
             const contentTextElement = document.createElement('div');
             contentTextElement.className = 'text-white text-xl font-bold flex-grow';
             
-            // Split the text into words and make them clickable
             const words = translationData.target.split(/\b/);
             words.forEach(word => {
-                if (word.trim() && /^[a-zA-Z]+$/.test(word)) {  // Only make actual words clickable, not punctuation
+                if (word.trim() && /^[a-zA-Z0-9'-]+$/.test(word)) {
                     const wordSpan = document.createElement('span');
                     wordSpan.className = 'clickable-word';
                     wordSpan.textContent = word;
-                    
-                    // Mark saved words
-                    if (isWordInVocabulary(word)) {
-                        wordSpan.classList.add('saved-word');
-                    }
-                    
+                    if (isWordInVocabulary(word)) wordSpan.classList.add('saved-word');
                     wordSpan.addEventListener('click', () => showWordDefinition(word));
                     contentTextElement.appendChild(wordSpan);
                 } else {
@@ -556,21 +523,16 @@ Respond ONLY with the valid JSON object based on the schema.
                 const textWrapper = document.createElement('div');
                 textWrapper.className = 'flex-grow pr-2';
                 
-                // Create target text with clickable words
                 const targetText = document.createElement('p');
                 targetText.className = 'text-[#1B1B1D] font-bold';
                 
                 const words = sentenceObj.target.split(/\b/);
                 words.forEach(word => {
-                    if (word.trim() && /^[a-zA-Z]+$/.test(word)) {
+                    if (word.trim() && /^[a-zA-Z0-9'-]+$/.test(word)) {
                         const wordSpan = document.createElement('span');
                         wordSpan.className = 'clickable-word';
                         wordSpan.textContent = word;
-                        
-                        if (isWordInVocabulary(word)) {
-                            wordSpan.classList.add('saved-word');
-                        }
-                        
+                        if (isWordInVocabulary(word)) wordSpan.classList.add('saved-word');
                         wordSpan.addEventListener('click', () => showWordDefinition(word));
                         targetText.appendChild(wordSpan);
                     } else {
@@ -595,95 +557,197 @@ Respond ONLY with the valid JSON object based on the schema.
             translationCards.appendChild(container);
         }
 
-        // --- Word Definition Functions ---
+        // --- Word Definition Functions (UPDATED) ---
         async function showWordDefinition(word) {
             currentWord = null;
             modalWord.textContent = word;
-            wordPronunciation.textContent = "Loading...";
-            wordDefinition.innerHTML = '<div class="animate-pulse">Looking up definition...</div>';
+            wordPronunciation.textContent = "検索中...";
+            wordDefinition.innerHTML = '<div class="animate-pulse">意味を調べています...</div>';
+            document.getElementById('word-alternatives-container').classList.add('hidden');
+            document.getElementById('word-example-container').classList.add('hidden');
             
             openWordModal();
             
             try {
-                const definition = await fetchWordDefinition(word);
+                const wordLanguage = targetLangSelect.value;
+                const definitionLanguage = sourceLangSelect.value === 'auto' ? 'Japanese' : sourceLangSelect.value;
+                
+                const definition = await getComprehensiveDefinition(word, wordLanguage, definitionLanguage);
                 currentWord = {
                     word: word,
                     definition: definition
                 };
                 
-                // Check if the word is already saved
                 if (isWordInVocabulary(word)) {
-                    saveWordBtn.textContent = "Remove from Vocabulary";
-                    saveWordBtn.classList.remove("bg-[#1B1B1D]");
-                    saveWordBtn.classList.add("bg-red-500");
+                    saveWordBtn.textContent = "単語帳から削除";
+                    saveWordBtn.classList.replace("bg-[#1B1B1D]", "bg-red-500");
                 } else {
-                    saveWordBtn.textContent = "Add to Vocabulary";
-                    saveWordBtn.classList.remove("bg-red-500");
-                    saveWordBtn.classList.add("bg-[#1B1B1D]");
+                    saveWordBtn.textContent = "単語帳に追加";
+                    saveWordBtn.classList.replace("bg-red-500", "bg-[#1B1B1D]");
                 }
                 
                 updateWordModal(definition);
             } catch (error) {
                 console.error("Failed to fetch word definition:", error);
                 wordPronunciation.textContent = "";
-                wordDefinition.innerHTML = '<p class="text-red-500">Failed to load definition. Please try again.</p>';
+                wordDefinition.innerHTML = `<p class="text-red-500">意味の読み込みに失敗しました。「${word}」は辞書にないか、スラングの可能性があります。</p>`;
             }
         }
         
-        async function fetchWordDefinition(word) {
+        async function getComprehensiveDefinition(word, wordLanguage, definitionLanguage) {
+            // If the desired definition is not in English, use AI directly.
+            if (definitionLanguage !== 'English') {
+                return getAiDefinition(word, wordLanguage, definitionLanguage);
+            }
+
+            // Fallback Chain for English -> English definitions
             try {
+                // 1. Try standard dictionary
                 const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
-                if (!response.ok) {
-                    throw new Error("Word not found");
-                }
+                if (!response.ok) throw new Error("Not in standard dictionary.");
                 const data = await response.json();
-                return data[0];
-            } catch (error) {
-                throw error;
+                const aiData = await getAiDefinition(word, wordLanguage, definitionLanguage);
+                return transformDictionaryApiData(data[0], aiData);
+            } catch (error1) {
+                try {
+                    // 2. Try slang dictionary
+                    const response = await fetch(`https://api.urbandictionary.com/v0/define?term=${encodeURIComponent(word.toLowerCase())}`);
+                    if (!response.ok) throw new Error("Urban Dictionary API failed.");
+                    const data = await response.json();
+                    if (!data.list || data.list.length === 0) throw new Error("Not in Urban Dictionary.");
+                    const aiData = await getAiDefinition(word, wordLanguage, definitionLanguage);
+                    return transformUrbanDictData(data.list[0], aiData);
+                } catch (error2) {
+                    // 3. Final fallback to AI
+                    return getAiDefinition(word, wordLanguage, definitionLanguage);
+                }
+            }
+        }
+
+        function transformDictionaryApiData(apiData, aiData) {
+            return {
+                pronunciation: apiData.phonetic || (apiData.phonetics.length > 0 ? apiData.phonetics.find(p => p.text)?.text : "N/A"),
+                partOfSpeech: apiData.meanings[0]?.partOfSpeech || "N/A",
+                definition: apiData.meanings[0]?.definitions[0]?.definition || "No definition found.",
+                alternatives: aiData.alternatives || [],
+                example: aiData.example || null
+            };
+        }
+
+        function transformUrbanDictData(apiData, aiData) {
+            return {
+                pronunciation: aiData.pronunciation || "N/A",
+                partOfSpeech: "slang",
+                definition: apiData.definition.replace(/[\[\]]/g, ''),
+                alternatives: aiData.alternatives || [],
+                example: {
+                    source: apiData.example.replace(/[\[\]]/g, ''),
+                    target: aiData.example?.target || "(Example translation by AI)"
+                }
+            };
+        }
+
+        async function getAiDefinition(word, wordLanguage, definitionLanguage) {
+            const prompt = `
+[ROLE]
+You are a helpful multilingual dictionary assistant. Your task is to provide a detailed, structured definition for a given word.
+
+[TASK]
+Analyze the user's word and provide a comprehensive definition in the specified definition language. Include pronunciation, part of speech, alternative expressions (like slang), and an example sentence.
+
+[INPUT]
+- Word to Define: "${word}"
+- Language of the Word: "${wordLanguage}"
+- Language for the Definition: "${definitionLanguage}"
+
+[INSTRUCTIONS]
+1.  **Definition**: Provide a clear and concise definition of the word. This definition MUST be written in the "${definitionLanguage}".
+2.  **Pronunciation**: Provide the phonetic transcription for the word.
+3.  **Part of Speech**: Identify the part of speech (e.g., noun, verb, adjective). This MUST be written in the "${definitionLanguage}".
+4.  **Alternatives**: List up to two common alternative or slang expressions related to the word. For each alternative, provide the expression itself and a brief explanation of its nuance. The explanation MUST be in the "${definitionLanguage}". If no alternatives are common, return an empty array. For "want to", you must include "wanna".
+5.  **Example**: Provide one clear example sentence using the word. The sentence should be in the "${wordLanguage}", and you MUST also provide its translation in the "${definitionLanguage}".
+6.  **Format**: Your final output must be a single, valid JSON object and nothing else. Do not include any text before or after the JSON object.
+
+[EXAMPLE OF PERFECT JSON OUTPUT]
+- Word to Define: "happy"
+- Language of the Word: "English"
+- Language for the Definition: "Japanese"
+- Expected JSON Output:
+{
+  "pronunciation": "/ˈhæpi/",
+  "partOfSpeech": "形容詞",
+  "definition": "幸福や喜びを感じている、または示している状態。",
+  "alternatives": [
+    { "expression": "glad", "nuance": "特定の出来事に対する喜びを表す、より一時的な感情。" },
+    { "expression": "pleased", "nuance": "満足感や喜びを表す、よりフォーマルな表現。" }
+  ],
+  "example": {
+    "source": "She looks very happy.",
+    "target": "彼女はとても幸せそうです。"
+  }
+}
+
+[OUTPUT FORMAT]
+Respond ONLY with the valid JSON object based on the schema.
+`;
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            };
+            const apiKey = "AIzaSyCwp7dPnOCSL8I0m55Oz8G75XUXFEhfhsg"; // Your API Key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`AI definition API request failed`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                let jsonString = result.candidates[0].content.parts[0].text;
+                jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                return JSON.parse(jsonString);
+            } else {
+                throw new Error("Invalid response from AI definition API.");
             }
         }
         
-        function updateWordModal(definition) {
-            // Display phonetics
-            if (definition.phonetic) {
-                wordPronunciation.textContent = definition.phonetic;
-            } else if (definition.phonetics && definition.phonetics.length > 0 && definition.phonetics[0].text) {
-                wordPronunciation.textContent = definition.phonetics[0].text;
-            } else {
-                wordPronunciation.textContent = "Pronunciation not available";
-            }
+        function updateWordModal(data) {
+            wordPronunciation.textContent = data.pronunciation || "発音情報なし";
             
-            // Display definitions
             wordDefinition.innerHTML = "";
-            if (definition.meanings && definition.meanings.length > 0) {
-                definition.meanings.forEach(meaning => {
-                    const partOfSpeech = document.createElement('p');
-                    partOfSpeech.className = "text-sm font-bold text-gray-500 mt-2";
-                    partOfSpeech.textContent = meaning.partOfSpeech;
-                    wordDefinition.appendChild(partOfSpeech);
-                    
-                    const definitionsList = document.createElement('ul');
-                    definitionsList.className = "list-disc pl-5 space-y-1";
-                    
-                    meaning.definitions.slice(0, 3).forEach(def => {
-                        const definitionItem = document.createElement('li');
-                        definitionItem.className = "text-sm";
-                        definitionItem.textContent = def.definition;
-                        
-                        if (def.example) {
-                            const example = document.createElement('p');
-                            example.className = "text-xs text-gray-500 italic mt-1";
-                            example.textContent = `"${def.example}"`;
-                            definitionItem.appendChild(example);
-                        }
-                        
-                        definitionsList.appendChild(definitionItem);
-                    });
-                    
-                    wordDefinition.appendChild(definitionsList);
+            const partOfSpeech = document.createElement('p');
+            partOfSpeech.className = "text-sm font-bold text-gray-500";
+            partOfSpeech.textContent = data.partOfSpeech || "品詞不明";
+            wordDefinition.appendChild(partOfSpeech);
+
+            const definitionText = document.createElement('p');
+            definitionText.textContent = data.definition || "定義が見つかりませんでした。";
+            wordDefinition.appendChild(definitionText);
+
+            const alternativesContainer = document.getElementById('word-alternatives-container');
+            const alternativesList = document.getElementById('word-alternatives');
+            alternativesList.innerHTML = "";
+            if (data.alternatives && data.alternatives.length > 0) {
+                data.alternatives.forEach(alt => {
+                    const item = document.createElement('div');
+                    item.className = "border-l-2 pl-2";
+                    item.innerHTML = `<p class="font-bold">${alt.expression}</p><p class="text-xs text-gray-600">${alt.nuance}</p>`;
+                    alternativesList.appendChild(item);
                 });
+                alternativesContainer.classList.remove('hidden');
             } else {
-                wordDefinition.textContent = "No definition found";
+                alternativesContainer.classList.add('hidden');
+            }
+
+            const exampleContainer = document.getElementById('word-example-container');
+            const exampleContent = document.getElementById('word-example');
+            exampleContent.innerHTML = "";
+            if (data.example && data.example.source) {
+                exampleContent.innerHTML = `<p class="italic">"${data.example.source}"</p><p class="text-gray-600">${data.example.target}</p>`;
+                exampleContainer.classList.remove('hidden');
+            } else {
+                exampleContainer.classList.add('hidden');
             }
         }
         
@@ -705,36 +769,20 @@ Respond ONLY with the valid JSON object based on the schema.
             const wordIndex = vocabularyItems.findIndex(item => item.word.toLowerCase() === currentWord.word.toLowerCase());
             
             if (wordIndex === -1) {
-                // Add word to vocabulary
-                vocabularyItems.push({
-                    word: currentWord.word,
-                    definition: currentWord.definition,
-                    addedAt: new Date().toISOString()
-                });
-                
-                saveWordBtn.textContent = "Remove from Vocabulary";
-                saveWordBtn.classList.remove("bg-[#1B1B1D]");
-                saveWordBtn.classList.add("bg-red-500");
-                
-                // Highlight all instances of this word in the UI
+                vocabularyItems.push({ word: currentWord.word, definition: currentWord.definition, addedAt: new Date().toISOString() });
+                saveWordBtn.textContent = "単語帳から削除";
+                saveWordBtn.classList.replace("bg-[#1B1B1D]", "bg-red-500");
                 highlightSavedWords(currentWord.word);
             } else {
-                // Remove word from vocabulary
                 vocabularyItems.splice(wordIndex, 1);
-                
-                saveWordBtn.textContent = "Add to Vocabulary";
-                saveWordBtn.classList.remove("bg-red-500");
-                saveWordBtn.classList.add("bg-[#1B1B1D]");
-                
-                // Remove highlighting
+                saveWordBtn.textContent = "単語帳に追加";
+                saveWordBtn.classList.replace("bg-red-500", "bg-[#1B1B1D]");
                 removeWordHighlight(currentWord.word);
             }
             
-            // Save to localStorage
             localStorage.setItem('vocabulary', JSON.stringify(vocabularyItems));
             updateVocabularyCount();
             
-            // Update vocabulary list if it's open
             if (!vocabularyDrawer.classList.contains('hidden')) {
                 renderVocabularyList();
             }
@@ -745,18 +793,14 @@ Respond ONLY with the valid JSON object based on the schema.
         }
         
         function highlightSavedWords(word) {
-            document.querySelectorAll('.clickable-word').forEach(wordElement => {
-                if (wordElement.textContent.toLowerCase() === word.toLowerCase()) {
-                    wordElement.classList.add('saved-word');
-                }
+            document.querySelectorAll('.clickable-word').forEach(el => {
+                if (el.textContent.toLowerCase() === word.toLowerCase()) el.classList.add('saved-word');
             });
         }
         
         function removeWordHighlight(word) {
-            document.querySelectorAll('.clickable-word').forEach(wordElement => {
-                if (wordElement.textContent.toLowerCase() === word.toLowerCase()) {
-                    wordElement.classList.remove('saved-word');
-                }
+            document.querySelectorAll('.clickable-word').forEach(el => {
+                if (el.textContent.toLowerCase() === word.toLowerCase()) el.classList.remove('saved-word');
             });
         }
         
@@ -765,11 +809,7 @@ Respond ONLY with the valid JSON object based on the schema.
         }
         
         function toggleVocabularyDrawer() {
-            if (vocabularyDrawer.classList.contains('hidden')) {
-                openVocabularyDrawer();
-            } else {
-                closeVocabularyDrawer();
-            }
+            vocabularyDrawer.classList.contains('hidden') ? openVocabularyDrawer() : closeVocabularyDrawer();
         }
         
         function openVocabularyDrawer() {
@@ -782,100 +822,44 @@ Respond ONLY with the valid JSON object based on the schema.
         
         function closeVocabularyDrawer() {
             vocabularyDrawer.classList.remove('visible');
-            setTimeout(() => {
-                vocabularyDrawer.classList.add('hidden');
-            }, 300);
+            setTimeout(() => vocabularyDrawer.classList.add('hidden'), 300);
         }
         
         function renderVocabularyList() {
             vocabularyList.innerHTML = "";
-            
             if (vocabularyItems.length === 0) {
-                const emptyMessage = document.createElement('div');
-                emptyMessage.className = "text-center p-6 text-gray-500";
-                emptyMessage.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3 opacity-50">
-                        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
-                    </svg>
-                    <p class="font-bold">Your vocabulary list is empty</p>
-                    <p class="text-sm mt-1">Click on words in translations to add them</p>
-                `;
-                vocabularyList.appendChild(emptyMessage);
+                vocabularyList.innerHTML = `
+                    <div class="text-center p-6 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3 opacity-50"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+                        <p class="font-bold">単語リストは空です</p>
+                        <p class="text-sm mt-1">翻訳結果の単語をクリックして追加します</p>
+                    </div>`;
                 return;
             }
             
-            // Sort by most recently added
-            const sortedItems = [...vocabularyItems].sort((a, b) => 
-                new Date(b.addedAt) - new Date(a.addedAt)
-            );
+            const sortedItems = [...vocabularyItems].sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
             
             sortedItems.forEach(item => {
                 const vocabItem = document.createElement('div');
                 vocabItem.className = "py-3 first:pt-0";
                 
-                const header = document.createElement('div');
-                header.className = "flex justify-between items-center mb-1";
-                
-                const wordText = document.createElement('h4');
-                wordText.className = "font-bold text-lg";
-                wordText.textContent = item.word;
-                
-                const actionsWrapper = document.createElement('div');
-                actionsWrapper.className = "flex space-x-1";
-                
-                // Play pronunciation button
-                const playButton = document.createElement('button');
-                playButton.className = "p-1 rounded hover:bg-gray-100";
-                playButton.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                    </svg>
+                const definitionText = item.definition?.definition || "意味の取得に失敗しました。";
+                vocabItem.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <h4 class="font-bold text-lg">${item.word}</h4>
+                        <div class="flex space-x-1">
+                            <button class="play-vocab-btn p-1 rounded hover:bg-gray-100" data-word="${item.word}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg></button>
+                            <button class="delete-vocab-btn p-1 rounded hover:bg-gray-100 text-red-500" data-word="${item.word}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                        </div>
+                    </div>
+                    ${item.definition?.pronunciation ? `<div class="text-sm text-gray-500 mb-1">${item.definition.pronunciation}</div>` : ''}
+                    <p class="text-sm text-gray-700">${definitionText.length > 100 ? definitionText.substring(0, 97) + '...' : definitionText}</p>
                 `;
-                playButton.addEventListener('click', () => {
-                    speakText(item.word, getLangCode(targetLangSelect.value));
-                });
-                
-                // Delete button
-                const deleteButton = document.createElement('button');
-                deleteButton.className = "p-1 rounded hover:bg-gray-100 text-red-500";
-                deleteButton.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                `;
-                deleteButton.addEventListener('click', () => {
-                    removeVocabularyItem(item.word);
-                });
-                
-                actionsWrapper.appendChild(playButton);
-                actionsWrapper.appendChild(deleteButton);
-                
-                header.appendChild(wordText);
-                header.appendChild(actionsWrapper);
-                vocabItem.appendChild(header);
-                
-                // Pronunciation
-                if (item.definition && item.definition.phonetic) {
-                    const pronunciation = document.createElement('div');
-                    pronunciation.className = "text-sm text-gray-500 mb-1";
-                    pronunciation.textContent = item.definition.phonetic;
-                    vocabItem.appendChild(pronunciation);
-                }
-                
-                // Definition (shortened)
-                if (item.definition && item.definition.meanings && item.definition.meanings.length > 0) {
-                    const definition = document.createElement('p');
-                    definition.className = "text-sm text-gray-700";
-                    const firstDef = item.definition.meanings[0].definitions[0].definition;
-                    definition.textContent = firstDef.length > 100 ? firstDef.substring(0, 97) + '...' : firstDef;
-                    vocabItem.appendChild(definition);
-                }
-                
                 vocabularyList.appendChild(vocabItem);
             });
+
+            vocabularyList.querySelectorAll('.play-vocab-btn').forEach(btn => btn.addEventListener('click', (e) => speakText(e.currentTarget.dataset.word, getLangCode(targetLangSelect.value))));
+            vocabularyList.querySelectorAll('.delete-vocab-btn').forEach(btn => btn.addEventListener('click', (e) => removeVocabularyItem(e.currentTarget.dataset.word)));
         }
         
         function removeVocabularyItem(word) {
@@ -887,32 +871,23 @@ Respond ONLY with the valid JSON object based on the schema.
                 renderVocabularyList();
                 removeWordHighlight(word);
                 
-                // Update the modal if it's showing the removed word
                 if (currentWord && currentWord.word.toLowerCase() === word.toLowerCase()) {
-                    saveWordBtn.textContent = "Add to Vocabulary";
-                    saveWordBtn.classList.remove("bg-red-500");
-                    saveWordBtn.classList.add("bg-[#1B1B1D]");
+                    saveWordBtn.textContent = "単語帳に追加";
+                    saveWordBtn.classList.replace("bg-red-500", "bg-[#1B1B1D]");
                 }
             }
         }
         
         function clearVocabulary() {
-            if (confirm("Are you sure you want to clear your entire vocabulary list? This cannot be undone.")) {
+            if (window.confirm("本当に単語帳をすべて削除しますか？この操作は元に戻せません。")) {
                 vocabularyItems = [];
                 localStorage.removeItem('vocabulary');
                 updateVocabularyCount();
                 renderVocabularyList();
-                
-                // Remove all highlights
-                document.querySelectorAll('.saved-word').forEach(element => {
-                    element.classList.remove('saved-word');
-                });
-                
-                // Update modal if open
+                document.querySelectorAll('.saved-word').forEach(el => el.classList.remove('saved-word'));
                 if (currentWord) {
-                    saveWordBtn.textContent = "Add to Vocabulary";
-                    saveWordBtn.classList.remove("bg-red-500");
-                    saveWordBtn.classList.add("bg-[#1B1B1D]");
+                    saveWordBtn.textContent = "単語帳に追加";
+                    saveWordBtn.classList.replace("bg-red-500", "bg-[#1B1B1D]");
                 }
             }
         }
@@ -936,7 +911,7 @@ Respond ONLY with the valid JSON object based on the schema.
         function createSpeakButton(textToSpeak, iconColor) {
             const button = document.createElement('button');
             button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
-            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`;
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="${iconColor}"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`;
             button.title = "音声で聞く";
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -948,13 +923,13 @@ Respond ONLY with the valid JSON object based on the schema.
         function createCopyButton(textToCopy, iconColor) {
             const button = document.createElement('button');
             button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
-            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="${iconColor}"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
             button.title = "クリップボードにコピー";
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const originalIcon = button.innerHTML;
                 navigator.clipboard.writeText(textToCopy).then(() => {
-                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><path d="M20 6 9 17l-5-5"></path></svg>`;
+                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="${iconColor}"><path d="M20 6 9 17l-5-5"></path></svg>`;
                     setTimeout(() => { button.innerHTML = originalIcon; }, 2000);
                 }).catch(err => console.error('Failed to copy text: ', err));
             });
@@ -982,4 +957,3 @@ Respond ONLY with the valid JSON object based on the schema.
     </script>
 </body>
 </html>
-
