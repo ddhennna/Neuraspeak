@@ -32,6 +32,70 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Word highlighting styles */
+        .clickable-word {
+            position: relative;
+            cursor: pointer;
+            border-radius: 3px;
+            padding: 1px 2px;
+            margin: 0 -2px;
+            transition: background-color 0.2s;
+        }
+        
+        .clickable-word:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            text-decoration: underline;
+        }
+        
+        .saved-word {
+            background-color: rgba(255, 255, 100, 0.3);
+        }
+
+        /* Word modal styles */
+        .word-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            width: 400px;
+            z-index: 50;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+        }
+        
+        /* Vocabulary drawer */
+        .vocabulary-drawer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            max-height: 70vh;
+            z-index: 30;
+            transition: transform 0.3s ease-in-out;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-top-left-radius: 1rem;
+            border-top-right-radius: 1rem;
+            overflow-y: auto;
+        }
+        
+        .vocabulary-drawer.hidden {
+            transform: translateY(100%);
+        }
+        
+        .vocabulary-drawer.visible {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="bg-white text-[#1B1B1D] flex items-center justify-center min-h-screen p-4">
@@ -46,7 +110,7 @@
             <!-- Language Selection & Input -->
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <select id="source-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-blue-800/50 focus:border-blue-800 outline-none transition">
+                    <select id="source-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-blue-800/50 focus:border-blue-800 outline-none">
                         <option value="auto" selected>自動認識 (Auto Detect)</option>
                         <option value="English">English</option>
                         <option value="Japanese">Japanese</option>
@@ -56,7 +120,7 @@
                         <option value="Chinese">Chinese</option>
                         <option value="Korean">Korean</option>
                     </select>
-                    <select id="target-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-blue-800/50 focus:border-blue-800 outline-none transition">
+                    <select id="target-lang" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-blue-800/50 focus:border-blue-800 outline-none">
                         <option value="English" selected>English</option>
                         <option value="Japanese">Japanese</option>
                         <option value="Spanish">Spanish</option>
@@ -67,9 +131,9 @@
                     </select>
                 </div>
                 
-                <textarea id="text-input" rows="4" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#1B1B1D]/50 focus:border-[#1B1B1D] outline-none transition" placeholder="e.g., メニューを見せてください。"></textarea>
+                <textarea id="text-input" rows="4" class="w-full p-3 bg-gray-100 border-2 border-gray-200 rounded-lg font-bold text-[#1B1B1D] focus:ring-4 focus:ring-[#1B1B1D]/50 focus:border-[#1B1B1D] outline-none" placeholder="翻訳したいテキストを入力してください..."></textarea>
 
-                <button id="translate-btn" class="w-full bg-[#1B1B1D] text-white font-extrabold text-lg py-3 px-4 rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-offset-white focus:ring-[#1B1B1D] transition-transform hover:scale-105 duration-200 flex items-center justify-center">
+                <button id="translate-btn" class="w-full bg-[#1B1B1D] text-white font-extrabold text-lg py-3 px-4 rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-[#1B1B1D]">
                     Translate
                 </button>
             </div>
@@ -87,12 +151,81 @@
 
                 <!-- Translation Cards -->
                 <div id="translation-cards" class="space-y-4"></div>
+                
+                <!-- Vocabulary Button -->
+                <div class="flex justify-center mt-6">
+                    <button id="vocabulary-btn" class="bg-gray-100 hover:bg-gray-200 text-[#1B1B1D] font-bold py-2 px-6 rounded-lg flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+                        </svg>
+                        My Vocabulary List
+                        <span id="vocabulary-count" class="ml-1 bg-[#1B1B1D] text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-xs">0</span>
+                    </button>
+                </div>
             </div>
         </div>
+        
         <!-- Signature Footer -->
         <footer class="text-center py-4">
             <p class="text-sm text-gray-500">Built by Amane Takezawa</p>
         </footer>
+    </div>
+    
+    <!-- Word Definition Modal -->
+    <div id="word-modal" class="word-modal hidden">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+            <div class="flex justify-between items-center border-b border-gray-200 p-4">
+                <h3 id="modal-word" class="text-xl font-extrabold"></h3>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18"></path>
+                        <path d="m6 6 12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="flex items-center mb-4 gap-2">
+                    <div id="word-pronunciation" class="text-gray-600 flex-grow"></div>
+                    <button id="play-pronunciation" class="p-1.5 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="word-definition" class="text-sm text-gray-700 space-y-2"></div>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <button id="save-word" class="w-full bg-[#1B1B1D] text-white font-bold py-2 rounded-md hover:bg-opacity-90">
+                        Add to Vocabulary
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="modal-overlay" class="modal-overlay hidden"></div>
+    
+    <!-- Vocabulary Drawer -->
+    <div id="vocabulary-drawer" class="vocabulary-drawer hidden">
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold">My Vocabulary List</h2>
+                <button id="close-vocabulary" class="text-gray-500 hover:text-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18"></path>
+                        <path d="m6 6 12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div id="vocabulary-list" class="p-4 divide-y divide-gray-200">
+            <!-- Vocabulary items will be inserted here -->
+        </div>
+        <div class="p-4 border-t border-gray-200">
+            <button id="clear-vocabulary" class="w-full bg-red-500 text-white font-bold py-2 rounded-md hover:bg-red-600">
+                Clear Vocabulary
+            </button>
+        </div>
     </div>
 
     <script>
@@ -104,6 +237,26 @@
         const loader = document.getElementById('loader-container');
         const errorMessage = document.getElementById('error-message');
         const translationCards = document.getElementById('translation-cards');
+        
+        // Vocabulary and word definition elements
+        const wordModal = document.getElementById('word-modal');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalWord = document.getElementById('modal-word');
+        const wordPronunciation = document.getElementById('word-pronunciation');
+        const wordDefinition = document.getElementById('word-definition');
+        const playPronunciation = document.getElementById('play-pronunciation');
+        const saveWordBtn = document.getElementById('save-word');
+        const closeModalBtn = document.getElementById('close-modal');
+        const vocabularyBtn = document.getElementById('vocabulary-btn');
+        const vocabularyCount = document.getElementById('vocabulary-count');
+        const vocabularyDrawer = document.getElementById('vocabulary-drawer');
+        const vocabularyList = document.getElementById('vocabulary-list');
+        const closeVocabularyBtn = document.getElementById('close-vocabulary');
+        const clearVocabularyBtn = document.getElementById('clear-vocabulary');
+        
+        // Vocabulary storage
+        let vocabularyItems = JSON.parse(localStorage.getItem('vocabulary') || '[]');
+        let currentWord = null;
 
         // --- TTS Voice Loading ---
         let voices = [];
@@ -124,6 +277,24 @@
                 handleTranslation();
             }
         });
+        
+        // Word modal event listeners
+        closeModalBtn.addEventListener('click', closeWordModal);
+        modalOverlay.addEventListener('click', closeWordModal);
+        saveWordBtn.addEventListener('click', saveWordToVocabulary);
+        playPronunciation.addEventListener('click', () => {
+            if (currentWord) {
+                speakText(currentWord.word, getLangCode(targetLangSelect.value));
+            }
+        });
+        
+        // Vocabulary drawer event listeners
+        vocabularyBtn.addEventListener('click', toggleVocabularyDrawer);
+        closeVocabularyBtn.addEventListener('click', closeVocabularyDrawer);
+        clearVocabularyBtn.addEventListener('click', clearVocabulary);
+        
+        // Initialize vocabulary count
+        updateVocabularyCount();
 
         // --- Main Translation Handler ---
         async function handleTranslation() {
@@ -156,7 +327,7 @@
 You are a world-class, expert multilingual translator and linguist. Your accuracy is crucial.
 
 [TASK]
-Your primary task is to translate the user's text, provide stylistic variations, recommend the best nuance, and predict logical follow-up phrases. You must strictly follow all instructions and output only the valid JSON.
+Your primary task is to translate the user's text, provide stylistic variations, recommend the best nuance, and predict logical follow-up phrases. You must strictly follow all instructions and output format.
 
 [INPUT]
 - User Text: "${text}"
@@ -164,10 +335,10 @@ Your primary task is to translate the user's text, provide stylistic variations,
 - Target Language: ${targetLang}
 
 [INSTRUCTIONS]
-1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: Standard, Casual, Polite.
-2.  **Back-Translate for Nuance**: For each of the three translation variations, create a "source_nuance". This field MUST be a direct, literal back-translation of your translated text **and MUST be written in the original source language (the same language as the user's input text), NOT the target language or English, regardless of the target language.**
+1.  **Analyze and Translate**: Analyze the user's text. If the source language is "Auto-detect", first identify the language. Then, provide three variations of the translation in the target language: standard, casual, and polite.
+2.  **Back-Translate for Nuance**: For each of the three translation variations, create a "source_nuance". This field MUST be a direct, literal back-translation of your translated text **and MUST be written in the source language**. 
 3.  **Recommend Best Nuance**: Based on the user's text, determine the most appropriate nuance. Add a field "recommendedNuance" to the JSON root. Its value MUST be one of: "standard", "casual", or "polite".
-4.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide both the target and the source version.
+4.  **Predict Next Actions**: Generate an array of three *different* and *logical* follow-up sentences a user might say. These must be distinct from the main translations. For each prediction, provide both the target language version and the source language version.
 5.  **Format Output**: Your final output must be a single, valid JSON object and nothing else.
 
 [EXAMPLE OF PERFECT OUTPUT]
@@ -328,9 +499,30 @@ Respond ONLY with the valid JSON object based on the schema.
             contentBox.style.backgroundColor = colors.highlightBgColor;
             contentBox.className = 'p-3 rounded-lg flex justify-between items-center';
             
-            const contentTextElement = document.createElement('span');
-            contentTextElement.className = 'text-white text-xl font-bold';
-            contentTextElement.textContent = translationData.target;
+            // Create a container for the text with clickable words
+            const contentTextElement = document.createElement('div');
+            contentTextElement.className = 'text-white text-xl font-bold flex-grow';
+            
+            // Split the text into words and make them clickable
+            const words = translationData.target.split(/\b/);
+            words.forEach(word => {
+                if (word.trim() && /^[a-zA-Z]+$/.test(word)) {  // Only make actual words clickable, not punctuation
+                    const wordSpan = document.createElement('span');
+                    wordSpan.className = 'clickable-word';
+                    wordSpan.textContent = word;
+                    
+                    // Mark saved words
+                    if (isWordInVocabulary(word)) {
+                        wordSpan.classList.add('saved-word');
+                    }
+                    
+                    wordSpan.addEventListener('click', () => showWordDefinition(word));
+                    contentTextElement.appendChild(wordSpan);
+                } else {
+                    contentTextElement.appendChild(document.createTextNode(word));
+                }
+            });
+            
             contentBox.appendChild(contentTextElement);
 
             const controlsWrapper = document.createElement('div');
@@ -363,9 +555,29 @@ Respond ONLY with the valid JSON object based on the schema.
                 item.className = 'bg-white p-3 rounded-md border border-gray-200 flex justify-between items-center';
                 const textWrapper = document.createElement('div');
                 textWrapper.className = 'flex-grow pr-2';
+                
+                // Create target text with clickable words
                 const targetText = document.createElement('p');
                 targetText.className = 'text-[#1B1B1D] font-bold';
-                targetText.textContent = sentenceObj.target;
+                
+                const words = sentenceObj.target.split(/\b/);
+                words.forEach(word => {
+                    if (word.trim() && /^[a-zA-Z]+$/.test(word)) {
+                        const wordSpan = document.createElement('span');
+                        wordSpan.className = 'clickable-word';
+                        wordSpan.textContent = word;
+                        
+                        if (isWordInVocabulary(word)) {
+                            wordSpan.classList.add('saved-word');
+                        }
+                        
+                        wordSpan.addEventListener('click', () => showWordDefinition(word));
+                        targetText.appendChild(wordSpan);
+                    } else {
+                        targetText.appendChild(document.createTextNode(word));
+                    }
+                });
+                
                 textWrapper.appendChild(targetText);
                 const sourceText = document.createElement('p');
                 sourceText.className = 'text-sm text-gray-500';
@@ -381,6 +593,328 @@ Respond ONLY with the valid JSON object based on the schema.
             });
             container.appendChild(list);
             translationCards.appendChild(container);
+        }
+
+        // --- Word Definition Functions ---
+        async function showWordDefinition(word) {
+            currentWord = null;
+            modalWord.textContent = word;
+            wordPronunciation.textContent = "Loading...";
+            wordDefinition.innerHTML = '<div class="animate-pulse">Looking up definition...</div>';
+            
+            openWordModal();
+            
+            try {
+                const definition = await fetchWordDefinition(word);
+                currentWord = {
+                    word: word,
+                    definition: definition
+                };
+                
+                // Check if the word is already saved
+                if (isWordInVocabulary(word)) {
+                    saveWordBtn.textContent = "Remove from Vocabulary";
+                    saveWordBtn.classList.remove("bg-[#1B1B1D]");
+                    saveWordBtn.classList.add("bg-red-500");
+                } else {
+                    saveWordBtn.textContent = "Add to Vocabulary";
+                    saveWordBtn.classList.remove("bg-red-500");
+                    saveWordBtn.classList.add("bg-[#1B1B1D]");
+                }
+                
+                updateWordModal(definition);
+            } catch (error) {
+                console.error("Failed to fetch word definition:", error);
+                wordPronunciation.textContent = "";
+                wordDefinition.innerHTML = '<p class="text-red-500">Failed to load definition. Please try again.</p>';
+            }
+        }
+        
+        async function fetchWordDefinition(word) {
+            try {
+                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
+                if (!response.ok) {
+                    throw new Error("Word not found");
+                }
+                const data = await response.json();
+                return data[0];
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        function updateWordModal(definition) {
+            // Display phonetics
+            if (definition.phonetic) {
+                wordPronunciation.textContent = definition.phonetic;
+            } else if (definition.phonetics && definition.phonetics.length > 0 && definition.phonetics[0].text) {
+                wordPronunciation.textContent = definition.phonetics[0].text;
+            } else {
+                wordPronunciation.textContent = "Pronunciation not available";
+            }
+            
+            // Display definitions
+            wordDefinition.innerHTML = "";
+            if (definition.meanings && definition.meanings.length > 0) {
+                definition.meanings.forEach(meaning => {
+                    const partOfSpeech = document.createElement('p');
+                    partOfSpeech.className = "text-sm font-bold text-gray-500 mt-2";
+                    partOfSpeech.textContent = meaning.partOfSpeech;
+                    wordDefinition.appendChild(partOfSpeech);
+                    
+                    const definitionsList = document.createElement('ul');
+                    definitionsList.className = "list-disc pl-5 space-y-1";
+                    
+                    meaning.definitions.slice(0, 3).forEach(def => {
+                        const definitionItem = document.createElement('li');
+                        definitionItem.className = "text-sm";
+                        definitionItem.textContent = def.definition;
+                        
+                        if (def.example) {
+                            const example = document.createElement('p');
+                            example.className = "text-xs text-gray-500 italic mt-1";
+                            example.textContent = `"${def.example}"`;
+                            definitionItem.appendChild(example);
+                        }
+                        
+                        definitionsList.appendChild(definitionItem);
+                    });
+                    
+                    wordDefinition.appendChild(definitionsList);
+                });
+            } else {
+                wordDefinition.textContent = "No definition found";
+            }
+        }
+        
+        function openWordModal() {
+            wordModal.classList.remove('hidden');
+            modalOverlay.classList.remove('hidden');
+        }
+        
+        function closeWordModal() {
+            wordModal.classList.add('hidden');
+            modalOverlay.classList.add('hidden');
+            currentWord = null;
+        }
+        
+        // --- Vocabulary Functions ---
+        function saveWordToVocabulary() {
+            if (!currentWord) return;
+            
+            const wordIndex = vocabularyItems.findIndex(item => item.word.toLowerCase() === currentWord.word.toLowerCase());
+            
+            if (wordIndex === -1) {
+                // Add word to vocabulary
+                vocabularyItems.push({
+                    word: currentWord.word,
+                    definition: currentWord.definition,
+                    addedAt: new Date().toISOString()
+                });
+                
+                saveWordBtn.textContent = "Remove from Vocabulary";
+                saveWordBtn.classList.remove("bg-[#1B1B1D]");
+                saveWordBtn.classList.add("bg-red-500");
+                
+                // Highlight all instances of this word in the UI
+                highlightSavedWords(currentWord.word);
+            } else {
+                // Remove word from vocabulary
+                vocabularyItems.splice(wordIndex, 1);
+                
+                saveWordBtn.textContent = "Add to Vocabulary";
+                saveWordBtn.classList.remove("bg-red-500");
+                saveWordBtn.classList.add("bg-[#1B1B1D]");
+                
+                // Remove highlighting
+                removeWordHighlight(currentWord.word);
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('vocabulary', JSON.stringify(vocabularyItems));
+            updateVocabularyCount();
+            
+            // Update vocabulary list if it's open
+            if (!vocabularyDrawer.classList.contains('hidden')) {
+                renderVocabularyList();
+            }
+        }
+        
+        function isWordInVocabulary(word) {
+            return vocabularyItems.some(item => item.word.toLowerCase() === word.toLowerCase());
+        }
+        
+        function highlightSavedWords(word) {
+            document.querySelectorAll('.clickable-word').forEach(wordElement => {
+                if (wordElement.textContent.toLowerCase() === word.toLowerCase()) {
+                    wordElement.classList.add('saved-word');
+                }
+            });
+        }
+        
+        function removeWordHighlight(word) {
+            document.querySelectorAll('.clickable-word').forEach(wordElement => {
+                if (wordElement.textContent.toLowerCase() === word.toLowerCase()) {
+                    wordElement.classList.remove('saved-word');
+                }
+            });
+        }
+        
+        function updateVocabularyCount() {
+            vocabularyCount.textContent = vocabularyItems.length;
+        }
+        
+        function toggleVocabularyDrawer() {
+            if (vocabularyDrawer.classList.contains('hidden')) {
+                openVocabularyDrawer();
+            } else {
+                closeVocabularyDrawer();
+            }
+        }
+        
+        function openVocabularyDrawer() {
+            vocabularyDrawer.classList.remove('hidden');
+            setTimeout(() => {
+                vocabularyDrawer.classList.add('visible');
+                renderVocabularyList();
+            }, 10);
+        }
+        
+        function closeVocabularyDrawer() {
+            vocabularyDrawer.classList.remove('visible');
+            setTimeout(() => {
+                vocabularyDrawer.classList.add('hidden');
+            }, 300);
+        }
+        
+        function renderVocabularyList() {
+            vocabularyList.innerHTML = "";
+            
+            if (vocabularyItems.length === 0) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.className = "text-center p-6 text-gray-500";
+                emptyMessage.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3 opacity-50">
+                        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+                    </svg>
+                    <p class="font-bold">Your vocabulary list is empty</p>
+                    <p class="text-sm mt-1">Click on words in translations to add them</p>
+                `;
+                vocabularyList.appendChild(emptyMessage);
+                return;
+            }
+            
+            // Sort by most recently added
+            const sortedItems = [...vocabularyItems].sort((a, b) => 
+                new Date(b.addedAt) - new Date(a.addedAt)
+            );
+            
+            sortedItems.forEach(item => {
+                const vocabItem = document.createElement('div');
+                vocabItem.className = "py-3 first:pt-0";
+                
+                const header = document.createElement('div');
+                header.className = "flex justify-between items-center mb-1";
+                
+                const wordText = document.createElement('h4');
+                wordText.className = "font-bold text-lg";
+                wordText.textContent = item.word;
+                
+                const actionsWrapper = document.createElement('div');
+                actionsWrapper.className = "flex space-x-1";
+                
+                // Play pronunciation button
+                const playButton = document.createElement('button');
+                playButton.className = "p-1 rounded hover:bg-gray-100";
+                playButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    </svg>
+                `;
+                playButton.addEventListener('click', () => {
+                    speakText(item.word, getLangCode(targetLangSelect.value));
+                });
+                
+                // Delete button
+                const deleteButton = document.createElement('button');
+                deleteButton.className = "p-1 rounded hover:bg-gray-100 text-red-500";
+                deleteButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                `;
+                deleteButton.addEventListener('click', () => {
+                    removeVocabularyItem(item.word);
+                });
+                
+                actionsWrapper.appendChild(playButton);
+                actionsWrapper.appendChild(deleteButton);
+                
+                header.appendChild(wordText);
+                header.appendChild(actionsWrapper);
+                vocabItem.appendChild(header);
+                
+                // Pronunciation
+                if (item.definition && item.definition.phonetic) {
+                    const pronunciation = document.createElement('div');
+                    pronunciation.className = "text-sm text-gray-500 mb-1";
+                    pronunciation.textContent = item.definition.phonetic;
+                    vocabItem.appendChild(pronunciation);
+                }
+                
+                // Definition (shortened)
+                if (item.definition && item.definition.meanings && item.definition.meanings.length > 0) {
+                    const definition = document.createElement('p');
+                    definition.className = "text-sm text-gray-700";
+                    const firstDef = item.definition.meanings[0].definitions[0].definition;
+                    definition.textContent = firstDef.length > 100 ? firstDef.substring(0, 97) + '...' : firstDef;
+                    vocabItem.appendChild(definition);
+                }
+                
+                vocabularyList.appendChild(vocabItem);
+            });
+        }
+        
+        function removeVocabularyItem(word) {
+            const index = vocabularyItems.findIndex(item => item.word.toLowerCase() === word.toLowerCase());
+            if (index !== -1) {
+                vocabularyItems.splice(index, 1);
+                localStorage.setItem('vocabulary', JSON.stringify(vocabularyItems));
+                updateVocabularyCount();
+                renderVocabularyList();
+                removeWordHighlight(word);
+                
+                // Update the modal if it's showing the removed word
+                if (currentWord && currentWord.word.toLowerCase() === word.toLowerCase()) {
+                    saveWordBtn.textContent = "Add to Vocabulary";
+                    saveWordBtn.classList.remove("bg-red-500");
+                    saveWordBtn.classList.add("bg-[#1B1B1D]");
+                }
+            }
+        }
+        
+        function clearVocabulary() {
+            if (confirm("Are you sure you want to clear your entire vocabulary list? This cannot be undone.")) {
+                vocabularyItems = [];
+                localStorage.removeItem('vocabulary');
+                updateVocabularyCount();
+                renderVocabularyList();
+                
+                // Remove all highlights
+                document.querySelectorAll('.saved-word').forEach(element => {
+                    element.classList.remove('saved-word');
+                });
+                
+                // Update modal if open
+                if (currentWord) {
+                    saveWordBtn.textContent = "Add to Vocabulary";
+                    saveWordBtn.classList.remove("bg-red-500");
+                    saveWordBtn.classList.add("bg-[#1B1B1D]");
+                }
+            }
         }
 
         // --- Utility Functions ---
@@ -402,7 +936,7 @@ Respond ONLY with the valid JSON object based on the schema.
         function createSpeakButton(textToSpeak, iconColor) {
             const button = document.createElement('button');
             button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
-            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`;
             button.title = "音声で聞く";
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -414,13 +948,13 @@ Respond ONLY with the valid JSON object based on the schema.
         function createCopyButton(textToCopy, iconColor) {
             const button = document.createElement('button');
             button.className = 'p-1.5 rounded-md hover:bg-black/10 transition-colors flex-shrink-0';
-            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
             button.title = "クリップボードにコピー";
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const originalIcon = button.innerHTML;
                 navigator.clipboard.writeText(textToCopy).then(() => {
-                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M20 6 9 17l-5-5"/></svg>`;
+                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="${iconColor}"><path d="M20 6 9 17l-5-5"></path></svg>`;
                     setTimeout(() => { button.innerHTML = originalIcon; }, 2000);
                 }).catch(err => console.error('Failed to copy text: ', err));
             });
