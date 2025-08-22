@@ -1161,7 +1161,7 @@ Respond ONLY with the valid JSON object based on the schema.
         
         // --- Learning Mode Functions ---
         function setupLearningMode() {
-            const quizItems = vocabularyItems.filter(item => item.definition?.example?.source);
+            const quizItems = vocabularyItems.filter(item => item.definition?.example?.source && item.definition?.example?.target);
             const MIN_WORDS_FOR_QUIZ = 3;
 
             if (quizItems.length < MIN_WORDS_FOR_QUIZ) {
@@ -1216,8 +1216,8 @@ Respond ONLY with the valid JSON object based on the schema.
                         Question ${quizState.currentIndex + 1} of ${quizState.items.length}
                     </div>
                     <div class="bg-gray-100 p-4 rounded-lg">
-                        <p class="text-sm font-bold text-gray-500 mb-1">意味：</p>
-                        <p class="font-semibold">${item.definition.definition}</p>
+                        <p class="text-sm font-bold text-gray-500 mb-1">文章の意味：</p>
+                        <p class="font-semibold">${item.definition.example.target}</p>
                     </div>
                     <div class="text-center text-xl font-bold my-4 p-4 bg-gray-50 rounded-lg">
                         ${blankedSentence}
@@ -1440,4 +1440,3 @@ Respond ONLY with the valid JSON object: {"isValid": boolean}
     </script>
 </body>
 </html>
-
